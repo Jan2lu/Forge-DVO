@@ -1,0 +1,1148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<title>Forge Davao</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one phone-width column, fixed bottom tab bar. The whiteboard is the hero of Today; dues are a scan-and-act list for coaches. */
+:root{
+  --font-display:'Big Shoulders Display','Arial Narrow',Impact,sans-serif;
+  --font-body:'Public Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  --bg:#E8E1D5; --surface:#F1ECE2; --raise:#FBF8F2; --ink:#103A39; --muted:#4F6663; --line:#CDC3B2;
+  --accent:#103A39; --on-accent:#E7D8CB; --khaki:#DDCABC;
+  --board:#FBF8F2; --board-ink:#103A39; --board-mute:#52695F; --frame:#9FB0A8;
+  --ok:#176B3C; --ok-bg:#D5EBDC; --warn:#85490A; --warn-bg:#F3E1BD; --bad:#A81E17; --bad-bg:#F5D6D2;
+  --focus:#1D5FD1; --scrim:rgba(6,20,19,.58);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0A1B1A; --surface:#0F2827; --raise:#153331; --ink:#E9DED1; --muted:#9BB0A9; --line:#25443F;
+  --accent:#DDCABC; --on-accent:#103A39; --khaki:#DDCABC;
+  --board:#153331; --board-ink:#EADFD2; --board-mute:#9BB0A9; --frame:#3C5E57;
+  --ok:#62CF90; --ok-bg:#12301F; --warn:#F2B75B; --warn-bg:#35290F; --bad:#F48C83; --bad-bg:#3B1613;
+  --focus:#7AA7F5; --scrim:rgba(0,0,0,.66); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0A1B1A; --surface:#0F2827; --raise:#153331; --ink:#E9DED1; --muted:#9BB0A9; --line:#25443F;
+  --accent:#DDCABC; --on-accent:#103A39; --khaki:#DDCABC;
+  --board:#153331; --board-ink:#EADFD2; --board-mute:#9BB0A9; --frame:#3C5E57;
+  --ok:#62CF90; --ok-bg:#12301F; --warn:#F2B75B; --warn-bg:#35290F; --bad:#F48C83; --bad-bg:#3B1613;
+  --focus:#7AA7F5; --scrim:rgba(0,0,0,.66); color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.45;padding-block:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.shell{max-width:640px;margin:0 auto;padding:14px 0 120px}
+.shell>*+*{margin-top:0}
+h2,h3,h4,p,ul,pre{margin:0}
+ul{list-style:none;padding:0}
+
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:8px}
+.logo{height:46px;width:auto;border-radius:5px;display:block}
+.tag{font:800 14px/1 var(--font-display);letter-spacing:.14em;background:var(--accent);color:var(--on-accent);padding:4px 7px 3px;text-transform:uppercase}
+.top-r{display:flex;align-items:center;gap:8px;min-width:0}
+.mename{font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#who{max-width:180px;min-width:0;background:var(--raise);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:14px}
+
+/* common */
+.sec{font:800 22px/1 var(--font-display);text-transform:uppercase;letter-spacing:.05em}
+.sec-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:26px 0 10px}
+.sec-row:first-child{margin-top:4px}
+.card{background:var(--raise);border:1px solid var(--line);border-radius:8px;padding:14px}
+.muted{color:var(--muted)}
+.mono{font-family:var(--font-mono)}
+.stack{display:grid;gap:10px}
+.btn{min-height:44px;padding:0 16px;border-radius:6px;border:1px solid var(--ink);background:var(--ink);color:var(--bg);font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
+.btn.sm{min-height:38px;padding:0 12px;font-size:14px}
+.btn.accent{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.danger{background:transparent;color:var(--bad);border-color:var(--bad)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.block{width:100%}
+.ic{min-width:44px;min-height:44px;border:1px solid var(--line);background:transparent;border-radius:6px;font-size:22px;line-height:1;cursor:pointer;color:var(--ink)}
+.pill{display:inline-flex;align-items:center;font:600 11px/1 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;padding:5px 7px;border-radius:4px;background:var(--line);color:var(--ink);white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.bad{background:var(--bad-bg);color:var(--bad)}
+.pill.mute{background:transparent;border:1px solid var(--line);color:var(--muted)}
+.pill.hyrox,.pill.pin{background:var(--accent);color:var(--on-accent)}
+.note{font-size:13px;color:var(--muted);padding:10px 12px;border:1px dashed var(--line);border-radius:6px}
+.banner{background:var(--warn-bg);color:var(--warn);border-radius:6px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+.empty{padding:22px 16px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:8px}
+.empty b{display:block;color:var(--ink);font:800 20px/1.1 var(--font-display);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+.empty .btn{margin-top:12px}
+
+/* coach strip */
+.strip{width:100%;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--ink);color:var(--bg);border:0;border-radius:6px;padding:12px 14px;margin-bottom:14px;font-size:14px;cursor:pointer;text-align:left}
+.strip b{font:700 18px var(--font-mono)}
+.strip .go{margin-left:auto;font-weight:800;color:var(--bg)}
+
+/* whiteboard */
+.board{background:var(--board);color:var(--board-ink);border:3px solid var(--frame);border-radius:6px;padding:14px 16px 16px}
+.board-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.tape{display:inline-block;background:var(--accent);color:var(--on-accent);font:800 14px/1 var(--font-display);letter-spacing:.16em;text-transform:uppercase;padding:5px 10px 4px;transform:rotate(-1.5deg)}
+.datenav{display:flex;align-items:center;gap:6px}
+.datenav .ic{min-width:40px;min-height:40px;font-size:20px;border-color:var(--frame);color:var(--board-ink)}
+.datenav .ic:disabled{opacity:.35}
+.datelabel{min-height:40px;padding:0 10px;background:transparent;border:0;font:600 13px var(--font-mono);color:var(--board-ink);cursor:pointer;text-transform:uppercase;letter-spacing:.06em}
+.board h3{font:800 36px/0.95 var(--font-display);text-transform:uppercase;letter-spacing:.01em;margin:14px 0 8px;text-wrap:balance}
+.briefing{border-left:3px solid var(--accent);padding-left:10px;margin:12px 0 4px;white-space:pre-wrap}
+.blk{margin-top:14px}
+.blk+.blk{border-top:1px dashed var(--frame);padding-top:14px}
+.board .blk h4{font:600 12px var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--board-mute);margin-bottom:6px}
+.board pre{font:500 15px/1.55 var(--font-mono);white-space:pre-wrap;word-break:break-word}
+.board-actions{margin-top:16px;display:flex;gap:8px}
+.board .btn.ghost{border-color:var(--frame);color:var(--board-ink)}
+.board .empty{border-color:var(--frame);margin-top:14px}
+.board .empty b{color:var(--board-ink)}
+
+/* lists */
+.list{border-top:1px solid var(--line)}
+.list>li{border-bottom:1px solid var(--line)}
+.up{display:grid;grid-template-columns:76px 1fr auto;gap:10px;align-items:center;width:100%;background:transparent;border:0;text-align:left;padding:12px 0;cursor:pointer}
+.up .t{font:500 18px var(--font-mono)}
+.t small{font-size:11px;margin-left:3px;color:var(--muted)}
+.up .nm,.nm{font-weight:600}
+.sub{display:block;font-size:13px;color:var(--muted)}
+.day-lab{font:600 11px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:block}
+
+/* classes */
+.days{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:12px}
+.day{flex:0 0 auto;min-width:56px;min-height:60px;border:1px solid var(--line);background:var(--raise);border-radius:6px;display:grid;place-items:center;padding:6px 8px;cursor:pointer;gap:0}
+.day span{font:600 11px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.day b{font:800 24px/1 var(--font-display)}
+.day[aria-pressed="true"]{background:var(--ink);border-color:var(--ink)}
+.day[aria-pressed="true"] span{color:var(--bg)}
+.day[aria-pressed="true"] b{color:var(--bg)}
+.cls{display:grid;grid-template-columns:78px 1fr;gap:6px 12px;padding:14px 0}
+.cls .t{font:500 20px/1.1 var(--font-mono)}
+.cls .head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cls .head .nm{font-size:17px}
+.cls .foot{grid-column:1/-1;display:flex;align-items:center;gap:12px;justify-content:space-between}
+.capwrap{flex:1;min-width:0}
+.cap{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.cap i{display:block;height:100%;background:var(--ink)}
+.cap.full i{background:var(--bad)}
+.capnum{font:500 12px var(--font-mono);color:var(--muted);margin-top:4px}
+.who-in{font-size:13px;color:var(--muted);grid-column:1/-1;overflow-wrap:anywhere}
+
+/* segmented */
+.seg{display:flex;gap:0;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--raise);margin-bottom:12px}
+.seg button{flex:1;min-height:42px;border:0;background:transparent;font-weight:600;cursor:pointer;font-size:14px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:10px}
+.chip{flex:0 0 auto;min-height:38px;padding:0 12px;border:1px solid var(--line);background:var(--raise);border-radius:19px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+
+/* PRs */
+.pr{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:14px 0;width:100%;background:transparent;border:0;text-align:left;cursor:pointer;align-items:center}
+.pr .val{font:500 24px/1 var(--font-mono);text-align:right}
+.rank{font:800 26px/1 var(--font-display);width:34px;color:var(--muted)}
+.rank.r1{color:var(--ink)}
+.lb{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;padding:12px 0}
+.lb .val{font:500 20px var(--font-mono)}
+.feed{padding:12px 0;display:grid;gap:2px}
+
+/* dues */
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:14px}
+.stat{background:var(--raise);border:1px solid var(--line);border-radius:6px;padding:10px 10px 8px;min-width:0}
+.stat span{font:600 10px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:block}
+.stat b{font:800 28px/1.1 var(--font-display);display:block;overflow-wrap:anywhere}
+.stat small{font-size:12px;color:var(--muted)}
+.stat.bad b{color:var(--bad)}
+.drow{display:grid;grid-template-columns:1fr auto;gap:8px 10px;align-items:center;padding:12px 0 12px 12px;border-left:4px solid var(--line)}
+.drow.st-overdue{border-left-color:var(--bad)}
+.drow.st-soon{border-left-color:var(--warn)}
+.drow.st-ok{border-left-color:var(--ok)}
+.drow-main{background:transparent;border:0;text-align:left;padding:0;cursor:pointer;min-width:0}
+.drow-actions{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}
+
+/* news */
+.ann h3{font:800 24px/1.05 var(--font-display);text-transform:uppercase;letter-spacing:.02em;margin:8px 0 6px;text-wrap:balance}
+.ann p{white-space:pre-wrap;overflow-wrap:anywhere}
+.ann .meta{font:500 12px var(--font-mono);color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ann .acts{display:flex;gap:8px;margin-top:12px}
+.clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+
+/* workout + board */
+.wk-title{font:800 34px/.95 var(--font-display);text-transform:uppercase;text-wrap:balance}
+.blkcard{background:var(--raise);border:1px solid var(--line);border-radius:8px;padding:14px;display:grid;gap:10px}
+.blkcard h4{font:800 22px/1 var(--font-display);text-transform:uppercase;letter-spacing:.04em}
+.blkcard pre{font:500 15px/1.55 var(--font-mono);white-space:pre-wrap;word-break:break-word}
+.blkhead{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.mylogs li{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:8px 0;border-top:1px solid var(--line);align-items:center}
+.lb.me{box-shadow:inset 3px 0 0 var(--accent);padding-left:10px}
+.lb .val{white-space:nowrap}
+.sec-row .datenav{flex-shrink:0}
+.blkedit .two select{width:100%;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:9px 10px;font-size:15px;min-height:42px}
+.blkedit .two label{font:600 11px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:4px}
+/* set cards (strength, accessory, skill) */
+.scard{--raise:#14231e;--surface:#1d302a;--line:#2f453d;--ink:#f1ece0;--muted:#9fb3a8;--ok:#c9b68a;--bg:#14231e;background:#14231e;color:var(--ink);border:1px solid #2f453d;border-radius:16px;padding:18px 16px;display:grid;gap:14px}
+.scard .btn:not(.danger){background:#c9b68a;color:#14231e;border-color:#c9b68a}
+.scard .seg button[aria-pressed="true"]{background:#c9b68a;color:#14231e}
+.scard .pill.ok{background:#c9b68a;color:#14231e}
+.scard .sc-note,.scard .setin textarea{color:var(--ink)}
+.sc-title{font:italic 800 32px/1 var(--font-display);text-transform:uppercase;letter-spacing:.01em;text-wrap:balance}
+.sc-sub{font:700 20px/1.25 var(--font-body);color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere;margin-top:-6px}
+.sc-demo{font:700 12px var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--ok);text-decoration:none;justify-self:start}
+.sc-rx{font:800 28px/1 var(--font-display);letter-spacing:.06em;color:var(--ok)}
+.sc-meta{font:600 13px var(--font-body);text-transform:uppercase;color:var(--muted);letter-spacing:.04em}
+.setrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) minmax(0,1.2fr) 52px;gap:8px}
+.setrow.rep{grid-template-columns:minmax(0,1fr) minmax(0,2.4fr) 52px}
+.setlab{display:grid;place-items:center;border:1px solid var(--line);border-radius:12px;background:var(--surface);font:800 14px var(--font-body);color:var(--muted);text-transform:uppercase;min-height:60px}
+.setin{border:1px solid var(--line);border-radius:12px;background:var(--surface);display:grid;justify-items:center;align-content:center;padding:6px 4px;min-width:0;min-height:60px}
+.setin span{font:700 10px var(--font-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.setin input,.setin b{width:100%;min-width:0;border:0;background:transparent;text-align:center;font:700 20px var(--font-body);padding:2px 0;color:var(--ink);min-height:30px;display:block}
+.setin input::placeholder{color:var(--muted);opacity:.75}
+.setin textarea{width:100%;border:0;background:transparent;font:500 16px var(--font-body);color:var(--ink);resize:vertical;min-height:70px;padding:6px 8px}
+.setin.wide{grid-column:1/-1}
+.setchk{border:1px solid var(--line);border-radius:12px;background:var(--surface);cursor:pointer;display:grid;place-items:center;color:var(--muted);min-height:60px}
+.setchk[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:var(--bg)}
+.setchk svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.sc-note{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:8px 12px;width:100%;font-size:15px;min-height:44px}
+.sc-quote{border-top:1px solid var(--line);padding-top:10px;font-style:italic;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere}
+.sc-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.blkedit label{font:600 11px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:4px}
+/* tabs */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
+  padding:0 max(8px,env(safe-area-inset-left,0px)) env(safe-area-inset-bottom,0px) max(8px,env(safe-area-inset-right,0px))}
+.tabs-in{max-width:640px;margin:0 auto;display:flex}
+.tabs button{flex:1;min-width:0;min-height:60px;background:transparent;border:0;display:grid;justify-items:center;align-content:center;gap:2px;color:var(--muted);font-size:10.5px;font-weight:600;cursor:pointer;position:relative}
+.tabs svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tabs button[aria-current="page"]{color:var(--ink)}
+.tabs button[aria-current="page"]::before{content:"";position:absolute;top:0;left:22%;right:22%;height:3px;background:var(--accent)}
+
+/* sheet */
+.scrim{position:fixed;inset:0;background:var(--scrim);z-index:40;display:flex;align-items:flex-end;justify-content:center}
+.panel{background:var(--surface);width:100%;max-width:600px;max-height:92%;overflow-y:auto;border-radius:14px 14px 0 0;
+  padding:18px max(16px,env(safe-area-inset-left,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-right,0px));outline:none}
+.panel h3{font:800 26px/1 var(--font-display);text-transform:uppercase;letter-spacing:.03em;margin-bottom:14px}
+.field{display:grid;gap:6px;margin-bottom:12px;min-width:0}
+.field label{font:600 12px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.field small{font-size:12px;color:var(--muted)}
+.field input,.field select,.field textarea{width:100%;min-width:0;background:var(--raise);border:1px solid var(--line);border-radius:6px;padding:10px 12px;font-size:16px;min-height:44px}
+.field textarea{resize:vertical;line-height:1.45}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.acts-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.acts-row .btn{flex:1 1 auto}
+.blkedit{border:1px solid var(--line);border-radius:6px;padding:10px;margin-bottom:10px;background:var(--raise);display:grid;gap:8px}
+.blkedit-head{display:flex;gap:8px}
+.blkedit input,.blkedit textarea{width:100%;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:9px 10px;font-size:16px}
+.blkedit textarea{font-family:var(--font-mono);font-size:14px}
+.hist{border-top:1px solid var(--line);margin-top:6px}
+.hist li{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 0;border-bottom:1px solid var(--line);align-items:center}
+.sched-day{font:800 18px var(--font-display);text-transform:uppercase;letter-spacing:.06em;margin:16px 0 4px}
+.sched-row{display:grid;grid-template-columns:76px 1fr auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.sched-row .t{font:500 15px var(--font-mono)}
+
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:11px 16px;border-radius:6px;font-size:14px;font-weight:600;z-index:60;max-width:min(92vw,420px);text-align:center;opacity:0;pointer-events:none;transition:opacity .18s}
+#toast.on{opacity:1}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+@media (max-width:380px){.logo{height:40px}.stat b{font-size:24px}.two{grid-template-columns:1fr}}
+</style>
+
+<div class="shell">
+  <header class="top">
+    <div class="brand"><img class="logo" alt="Forge" src="data:image/jpeg;base64,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"><span class="tag">Davao</span></div>
+    <div class="top-r">
+      <span id="meName" class="mename" hidden></span>
+      <select id="who" aria-label="Who is training"></select>
+      <button id="gear" class="btn sm ghost" data-act="settings" hidden>Settings</button>
+      <button id="signout" class="btn sm ghost" data-act="sign-out" hidden>Sign out</button>
+    </div>
+  </header>
+  <main id="view" aria-live="polite"></main>
+</div>
+<nav id="tabs" class="tabs" aria-label="Sections"></nav>
+<div id="sheet"></div>
+<div id="toast" role="status"></div>
+
+<script id="core">
+/* Dates, formatting and sample data. Plain functions so the sample can also be generated outside the page. */
+var pad=function(n){return String(n).padStart(2,'0')};
+var iso=function(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+var parseD=function(s){var p=String(s).split('-').map(Number);return new Date(p[0],p[1]-1,p[2])};
+var addDays=function(s,n){var d=parseD(s);d.setDate(d.getDate()+n);return iso(d)};
+var addMonths=function(s,n,anchor){var d=parseD(s);var day=anchor||d.getDate();var t=new Date(d.getFullYear(),d.getMonth()+n,1);var last=new Date(t.getFullYear(),t.getMonth()+1,0).getDate();t.setDate(Math.min(day,last));return iso(t)};
+var diffDays=function(a,b){return Math.round((parseD(a)-parseD(b))/864e5)};
+
+function sampleData(today){
+  var D=function(n){return addDays(today,n)};
+  var out={members:{},dues:{},schedule:{},workouts:{},announcements:{},prs:{},reservations:{},settings:{},claims:{},scores:{},logs:{}};
+  var rows=[
+    ['m1','Marco Villanueva','CrossFit Unlimited',3500,-6,true,'0917 000 0001'],
+    ['m2','Pia Dizon','CrossFit + Hyrox',4200,-2,true,'0917 000 0002'],
+    ['m3','Jun Ramos','Hyrox Club',2800,2,true,'0917 000 0003'],
+    ['m4','Bea Alcantara','CrossFit Unlimited',3500,9,true,'0917 000 0004'],
+    ['m5','Kiko Tan','CrossFit + Hyrox',4200,18,true,'0917 000 0005'],
+    ['m6','Dani Mercado','Hyrox Club',2800,24,true,'0917 000 0006'],
+    ['m7','Luis Abella','CrossFit Unlimited',3500,12,true,'0917 000 0007'],
+    ['m8','Rica Gomez','CrossFit Unlimited',3500,40,false,'0917 000 0008']
+  ];
+  rows.forEach(function(r,i){
+    var nextDue=D(r[4]);
+    out.members[r[0]]={name:r[1],plan:r[2],active:r[5],joined:D(-200),sample:true};
+    var last=addMonths(nextDue,-1);
+    out.dues[r[0]]={fee:r[3],nextDue:nextDue,dueDay:parseD(nextDue).getDate(),phone:r[6],
+      payments:[{date:last,amount:r[3],method:i%2?'GCash':'Cash',months:1}],sample:true};
+  });
+  var C='CrossFit',H='Hyrox Engine';
+  var sch=[
+    [1,'05:30',C,'CrossFit','Coach Migs',14],[1,'06:30',C,'CrossFit','Coach Migs',14],[1,'17:30',C,'CrossFit','Coach Anya',14],[1,'18:30',H,'Hyrox','Coach Anya',10],
+    [2,'05:30',C,'CrossFit','Coach Anya',14],[2,'06:30',C,'CrossFit','Coach Anya',14],[2,'17:30',C,'CrossFit','Coach Migs',14],[2,'18:30',C,'CrossFit','Coach Migs',14],
+    [3,'05:30',C,'CrossFit','Coach Migs',14],[3,'06:30',C,'CrossFit','Coach Migs',14],[3,'17:30',C,'CrossFit','Coach Anya',14],[3,'18:30',H,'Hyrox','Coach Anya',10],
+    [4,'05:30',C,'CrossFit','Coach Anya',14],[4,'17:30',C,'CrossFit','Coach Migs',14],[4,'19:00','Foundations','Foundations','Coach Migs',8],
+    [5,'05:30',C,'CrossFit','Coach Migs',14],[5,'06:30',C,'CrossFit','Coach Migs',14],[5,'17:30',C,'CrossFit','Coach Anya',14],[5,'18:30',H,'Hyrox','Coach Anya',10],
+    [6,'07:00','Community WOD','CrossFit','Coach Anya',20],[6,'08:30',H,'Hyrox','Coach Migs',12],
+    [0,'08:00','Open Gym','Open Gym','Coach on duty',20]
+  ];
+  var cid={};
+  sch.forEach(function(s,i){var id='c'+(i+1);cid[s[0]+'_'+s[1]]=id;out.schedule[id]={day:s[0],time:s[1],name:s[2],track:s[3],coach:s[4],capacity:s[5],sample:true}});
+  out.workouts[today]={date:today,title:'Hyrox Engine Builder',track:'Hyrox',
+    briefing:'Open gym 8 to 10 AM. Warm up before touching the sled. Wipe down the wall ball area when you are done.',
+    blocks:[
+      {id:'i0',type:'warmup',label:'Warm-up',text:'3 rounds\n200 m run\n10 air squats\n10 scap pull-ups'},
+      {id:'i1',type:'metcon',scoring:'time',label:'Engine',text:'4 rounds for time, rest 2:00 between\n1000 m SkiErg\n50 m sled push (heavy)\n20 wall balls (9/6 kg)'},
+      {id:'i2',type:'cooldown',label:'Cooldown',text:'5 min easy row\nCouch stretch 2 min per side'}],
+    scaling:'Sled: drop the load, keep the pace. Wall balls: 6/4 kg to a 9 ft target.',sample:true};
+  out.workouts[D(1)]={date:D(1),title:'Squat Day + Fran',track:'CrossFit',
+    briefing:'Heavy squats first, then the classic. Pick a squat load you can hit for all five sets.',
+    blocks:[
+      {id:'i2',type:'skill',scoring:'note',label:'Skill: Pistol squat',text:'10 minutes of progressions. Aim for control on the way down.'},{id:'i0',type:'strength',label:'Back Squat',sets:5,repsT:'3-5',tempo:'20X1',rest:'3 MIN',demo:'https://www.youtube.com/results?search_query=back+squat+technique',text:'Build to a heavy 3-5 rep set.'},
+      {id:'i1',type:'metcon',scoring:'time',label:'WOD',text:'Fran\n21-15-9\nThrusters (43/30 kg)\nPull-ups'}],
+    scaling:'Thrusters 30/20 kg. Pull-ups: ring rows or banded.',sample:true};
+  out.workouts[D(-1)]={date:D(-1),title:'Community WOD: Partner Grind',track:'CrossFit',
+    briefing:'Teams of two. One works while the other rests. Cheer loudly.',
+    blocks:[{id:'i0',type:'metcon',scoring:'amrap',label:'WOD',text:'20 min AMRAP, partners split reps\n40 cal row\n30 box jumps\n20 KB swings\n10 burpees'}],scaling:'',sample:true};
+  out.announcements.a1={title:'Dues are due on your anniversary date',body:'Your monthly dues fall on the same date each month. Pay at the front desk or send your proof of payment to the coaches. Frozen memberships keep their date.',pinned:true,createdAt:D(-3)+'T08:00:00',by:null,sample:true};
+  out.announcements.a2={title:'Reserve your class slot in the app',body:'Pick your name at the top, open Classes and tap Reserve. Cancel at least one hour before so someone on the waitlist can train.',pinned:false,createdAt:D(-1)+'T18:00:00',by:null,sample:true};
+  var P=function(m,mv,kind,v,ago,note){return {memberId:m,movement:mv,kind:kind,value:v,unit:kind==='load'?'kg':kind==='reps'?'reps':'',date:D(-ago),note:note||'',sample:true}};
+  var prs=[
+    P('m1','Back Squat','load',140,40),P('m1','Back Squat','load',150,9,'Belt on, felt fast'),P('m1','Deadlift','load',180,20),
+    P('m2','Fran','time',245,30),P('m2','Fran','time',231,6,'Sub 4:00 next'),P('m2','Hyrox Full Race','time',4950,14),
+    P('m3','Hyrox Full Race','time',5400,25),P('m3','Hyrox Full Race','time',5190,11),P('m3','1000m SkiErg','time',232,3),
+    P('m4','Clean & Jerk','load',62.5,5),P('m4','Max Pull-ups','reps',14,18),
+    P('m5','Back Squat','load',125,12),P('m5','Snatch','load',85,8),P('m5','2K Row','time',420,4),
+    P('m6','Hyrox Full Race','time',5760,2),P('m7','Deadlift','load',160,15),P('m7','Fran','time',305,22)
+  ];
+  prs.forEach(function(p,i){var k='s_'+p.memberId;var doc=out.prs[k]||(out.prs[k]={memberId:p.memberId,entries:{},sample:true});var e=Object.assign({},p);delete e.memberId;delete e.sample;doc.entries['p'+(i+1)]=e});
+  var R=function(off,day,time,m){var c=cid[day+'_'+time];var d=D(off);var k='s_'+m;var doc=out.reservations[k]||(out.reservations[k]={memberId:m,items:{},sample:true});doc.items[d+'_'+c]={date:d,classId:c}};
+  ['m5','m7','m4'].forEach(function(m){R(1,1,'05:30',m)});
+  ['m2','m1'].forEach(function(m){R(1,1,'17:30',m)});
+  ['m3','m6','m2'].forEach(function(m){R(1,1,'18:30',m)});
+  ['m5','m6'].forEach(function(m){R(0,0,'08:00',m)});
+  var SC=function(m,off,bid,label,wod,scoring,div,val,note){var k='s_'+m;var doc=out.scores[k]||(out.scores[k]={memberId:m,entries:{},sample:true});doc.entries['e'+Object.keys(doc.entries).length]={date:D(off),blockId:bid,label:label,wod:wod,type:'metcon',scoring:scoring,division:div,value:val,note:note||''}};
+  SC('m1',0,'i1','Engine','Hyrox Engine Builder','time','Rx',1425,'Sled felt heavy');SC('m2',0,'i1','Engine','Hyrox Engine Builder','time','Rx',1485);SC('m3',0,'i1','Engine','Hyrox Engine Builder','time','Rx',1560);SC('m5',0,'i1','Engine','Hyrox Engine Builder','time','Scaled',1640,'Lighter sled');SC('m6',0,'i1','Engine','Hyrox Engine Builder','time','Scaled',1720);
+  SC('m2',-1,'i0','WOD','Community WOD: Partner Grind','amrap','Rx',8000);SC('m1',-1,'i0','WOD','Community WOD: Partner Grind','amrap','Rx',7005);SC('m4',-1,'i0','WOD','Community WOD: Partner Grind','amrap','Rx',6009);SC('m7',-1,'i0','WOD','Community WOD: Partner Grind','amrap','Scaled',5000);
+  out.settings.gym={payNote:'You can pay at the front desk or send us your proof of payment here.',leadDays:3};
+  return out;
+}
+</script>
+
+<script id="app">
+(function(){
+'use strict';
+var S={members:{},dues:{},workouts:{},schedule:{},announcements:{},prs:{},reservations:{},settings:{},claims:{},mydues:{},scores:{},logs:{},names:{}};
+var ui={drafts:{},div:'All',boardBlock:null,unit:'kg',tab:'today',wodDate:null,classDate:null,prView:'mine',lbMove:null,filter:'all',who:null};
+var env={mode:'loading',sb:null,session:null,profiles:[],subbed:false,db:null,user:null,coach:false,uid:null,canWrite:null,loaded:{},errs:{},expect:[]};
+
+var MOVES=[
+  {n:'Back Squat',k:'load'},{n:'Front Squat',k:'load'},{n:'Deadlift',k:'load'},{n:'Clean & Jerk',k:'load'},{n:'Snatch',k:'load'},{n:'Strict Press',k:'load'},{n:'Bench Press',k:'load'},
+  {n:'Fran',k:'time'},{n:'2K Row',k:'time'},{n:'5K Run',k:'time'},{n:'1000m SkiErg',k:'time'},{n:'Hyrox Full Race',k:'time'},
+  {n:'Max Pull-ups',k:'reps'},{n:'Max Burpees (7 min)',k:'reps'}];
+var TRACKS=['CrossFit','Hyrox','Open Gym','Foundations'];
+var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+var DOWF=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+var TABS=[
+  {id:'today',label:'Today',icon:'<rect x="3" y="4" width="18" height="12" rx="1"/><path d="M8 20h8M12 16v4"/>'},
+  {id:'workout',label:'Workout',icon:'<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 3h6v3H9zM9 11h6M9 15h4"/>'},
+  {id:'board',label:'Board',icon:'<path d="M8 4h8v5a4 4 0 01-8 0V4zM8 6H5v2a3 3 0 003 3M16 6h3v2a3 3 0 01-3 3M12 13v4M9 20h6"/>'},
+  {id:'classes',label:'Classes',icon:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'},
+  {id:'prs',label:'PRs',icon:'<path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12"/>'},
+  {id:'dues',label:'Dues',coach:true,icon:'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/>'},
+  {id:'news',label:'News',icon:'<path d="M4 10v4h3l7 4V6L7 10H4zM17 9a4 4 0 010 6"/>'}];
+
+var $=function(id){return document.getElementById(id)};
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
+var money=function(n){return '₱'+Number(n||0).toLocaleString('en-PH')};
+var TODAY=function(){return iso(new Date())};
+var nowHM=function(){var d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())};
+var fmtDate=function(s,o){return parseD(s).toLocaleDateString('en-PH',o||{weekday:'short',month:'short',day:'numeric'})};
+var fmtShort=function(s){return fmtDate(s,{month:'short',day:'numeric'})};
+var timeHtml=function(t){var p=t.split(':').map(Number);return (p[0]%12||12)+':'+pad(p[1])+'<small>'+(p[0]<12?'AM':'PM')+'</small>'};
+var timeText=function(t){var p=t.split(':').map(Number);return (p[0]%12||12)+':'+pad(p[1])+' '+(p[0]<12?'AM':'PM')};
+var plural=function(n,w){return n+' '+w+(n===1?'':'s')};
+var rid=function(p){return p+Math.random().toString(36).slice(2,10)};
+var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+var clone=function(o){return JSON.parse(JSON.stringify(o))};
+
+function fmtSecs(s){s=Math.round(s);var h=Math.floor(s/3600),m=Math.floor(s%3600/60),r=s%60;return h?h+':'+pad(m)+':'+pad(r):m+':'+pad(r)}
+function parseSecs(t){var p=String(t).trim().split(':').map(function(x){return x.trim()});if(!p.length||p.length>3||p.some(function(x){return !/^\d+(\.\d+)?$/.test(x)}))return null;var s=0;p.forEach(function(x){s=s*60+Number(x)});return s}
+function fmtVal(kind,v,p){if(kind==='time')return fmtSecs(v);if(kind==='reps')return v+' reps';var u=ui.unit;if(p&&p.enteredUnit===u&&p.entered!=null)return p.entered+' '+u;var x=u==='lb'?Math.round(Number(v)/0.45359237*10)/10:Math.round(Number(v)*10)/10;return x+' '+u}
+function better(kind,a,b){return kind==='time'?a<b:a>b}
+
+/* ---------- data access ---------- */
+var renderQ=0;
+function scheduleRender(){if(renderQ)return;renderQ=requestAnimationFrame(function(){renderQ=0;render()})}
+function errMsg(e){var c=e&&e.code;if(e&&/already logged/i.test(e.message||''))return 'Already logged. Ask a coach to clear it first.';if(c==='invalid_argument')return 'That did not save. You may not have permission to change this.';if(c==='quota_exceeded')return 'Storage is full. Delete old items, then try again.';return 'That did not save. Check your connection and try again.'}
+async function put(c,id,data){if(env.mode==='demo'){S[c]=S[c]||{};S[c][id]=data;scheduleRender();return}await env.db.collection(c).doc(id).set(data)}
+async function patch(c,id,data){if(env.mode==='demo'){S[c][id]=Object.assign({},S[c][id],data);scheduleRender();return}await env.db.collection(c).doc(id).update(data)}
+async function del(c,id){if(env.mode==='demo'){delete S[c][id];scheduleRender();return}await env.db.collection(c).doc(id).delete()}
+async function safely(fn){try{await fn();return true}catch(e){toast(errMsg(e));return false}}
+
+var toastT;
+function toast(m){var t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(function(){t.classList.remove('on')},3200)}
+
+/* ---------- derived ---------- */
+function members(){return Object.keys(S.members).map(function(id){return Object.assign({id:id},S.members[id])}).sort(function(a,b){return a.name.localeCompare(b.name)})}
+function nameOf(id){return S.members[id]?S.members[id].name:'Former member'}
+function firstName(id){return nameOf(id).split(' ')[0]}
+function dueInfo(id){
+  var m=S.members[id],d=S.dues[id];if(!m||!d)return null;
+  var days=diffDays(d.nextDue,TODAY());var lead=(S.settings.gym&&Number(S.settings.gym.leadDays))||3;
+  var st=!m.active?'frozen':days<0?'overdue':days<=lead?'soon':'ok';
+  return {id:id,m:m,d:d,days:days,st:st};
+}
+function duesAll(){return Object.keys(S.members).map(dueInfo).filter(Boolean)}
+function duesCounts(){
+  var c={overdue:0,soon:0,ok:0,frozen:0,overdueAmt:0,collected:0};var ym=TODAY().slice(0,7);
+  duesAll().forEach(function(i){c[i.st]++;if(i.st==='overdue')c.overdueAmt+=Number(i.d.fee)||0;(i.d.payments||[]).forEach(function(p){if(String(p.date).slice(0,7)===ym)c.collected+=Number(p.amount)||0})});
+  return c;
+}
+function statusLabel(i){
+  if(i.st==='frozen')return 'Frozen';
+  if(i.st==='overdue')return plural(-i.days,'day')+' late';
+  if(i.st==='soon')return i.days===0?'Due today':'Due in '+plural(i.days,'day');
+  return 'Paid · '+fmtShort(i.d.nextDue);
+}
+function reminderText(i){
+  var g=S.settings.gym||{};var when=fmtDate(i.d.nextDue,{month:'long',day:'numeric'});
+  var state=i.days<0?'was due on '+when:i.days===0?'is due today':'is due on '+when;
+  return ('Hi '+i.m.name.split(' ')[0]+'! This is Forge Davao. Your '+(i.m.plan||'')+' membership ('+money(i.d.fee)+') '+state+'. '+(g.payNote||'')+' Thank you!').replace(/\s+/g,' ').trim();
+}
+function classesOn(date){var dow=parseD(date).getDay();return Object.keys(S.schedule).map(function(id){return Object.assign({id:id},S.schedule[id])}).filter(function(c){return c.day===dow}).sort(function(a,b){return a.time.localeCompare(b.time)})}
+function resvFor(cid,date){var o=[];Object.keys(S.reservations).forEach(function(k){var doc=S.reservations[k]||{};Object.keys(doc.items||{}).forEach(function(x){var it=doc.items[x];if(it.classId===cid&&it.date===date)o.push({id:k+'/'+x,memberId:doc.memberId,classId:cid,date:date})})});return o}
+function upcoming(limit){var out=[],t=TODAY(),n=nowHM();for(var i=0;i<7&&out.length<limit;i++){var date=addDays(t,i);classesOn(date).forEach(function(c){if(i===0&&c.time<=n)return;out.push(Object.assign({date:date},c))})}return out.slice(0,limit)}
+function allPrs(){var o=[];Object.keys(S.prs).forEach(function(k){var doc=S.prs[k]||{};Object.keys(doc.entries||{}).forEach(function(id){o.push(Object.assign({},doc.entries[id],{id:id,docId:k,memberId:doc.memberId}))})});return o}
+function claimUid(mid){var k=Object.keys(S.claims).filter(function(u){return S.claims[u].memberId===mid})[0];return k||null}
+function ownerKey(mid){return env.coach?(claimUid(mid)||'c_'+mid):env.uid}
+async function addPr(who,e){var k=ownerKey(who);var cur=S.prs[k]||{memberId:who,entries:{}};var ent=Object.assign({},cur.entries);ent[rid('p_')]=e;await put('prs',k,{memberId:who,entries:ent})}
+async function addResv(who,date,cls){var k=ownerKey(who),t=TODAY();var cur=S.reservations[k]||{memberId:who,items:{}};var it={};Object.keys(cur.items||{}).forEach(function(x){if(cur.items[x].date>=t)it[x]=cur.items[x]});it[date+'_'+cls]={date:date,classId:cls};await put('reservations',k,{memberId:who,items:it})}
+async function dropResv(who,date,cls){var k=ownerKey(who);var cur=S.reservations[k];if(!cur)return;var it=Object.assign({},cur.items);delete it[date+'_'+cls];await put('reservations',k,{memberId:who,items:it})}
+function claimView(){return '<div class="empty"><b>Your account is not linked yet</b>A coach needs to link your login to your member record. Ask a coach, then tap Check again.<div class="acts-row" style="justify-content:center"><button class="btn accent" data-act="recheck">Check again</button></div></div>'}
+function claimsHtml(){var us=Object.keys(S.claims);return '<div class="sec-row" style="margin:22px 0 6px"><h2 class="sec" style="font-size:18px">Member app links</h2></div><p class="muted" style="font-size:13px;margin-bottom:6px">Members are linked when you approve their sign-up. Unlinking also clears the PRs, scores and class spots saved under that link.</p>'+(us.length?'<ul class="hist">'+us.map(function(u){return '<li><span class="nm">'+esc(nameOf(S.claims[u].memberId))+'</span><button class="btn sm danger" data-act="claim-reset" data-u="'+esc(u)+'">Unlink</button></li>'}).join('')+'</ul>':'<p class="muted" style="font-size:13px">No one has linked yet.</p>')}
+var BTYPES=[['warmup','Warm-up'],['skill','Skill'],['strength','Strength'],['metcon','Metcon'],['accessory','Accessory'],['cooldown','Cooldown'],['other','Other']];
+var SCORING=[['none','No scoring'],['time','Time'],['amrap','Rounds + reps'],['reps','Reps'],['load','Weight'],['note','Notes only']];
+var DEFSCORE={warmup:'none',skill:'note',strength:'load',metcon:'time',accessory:'load',cooldown:'none',other:'none'};
+var LOGWORD={time:'time',amrap:'rounds',reps:'reps',load:'weight',note:'notes'};
+function inferType(label){var l=String(label||'').toLowerCase();if(/warm/.test(l))return 'warmup';if(/cool/.test(l))return 'cooldown';if(/skill|gymnastic|technique/.test(l))return 'skill';if(/strength|squat|deadlift|press|clean|snatch|lift/.test(l))return 'strength';if(/accessor|core/.test(l))return 'accessory';if(/wod|metcon|engine|conditioning|amrap|emom|hyrox|race|for time/.test(l))return 'metcon';return 'other'}
+function blockInfo(w,b,i){var type=b.type||inferType(b.label);return {id:b.id||('i'+i),type:type,scoring:b.scoring||DEFSCORE[type]||'none',label:b.label||'Workout',text:b.text||'',sets:Number(b.sets)||0,repsT:b.repsT||'',tempo:b.tempo||'',rest:b.rest||'',demo:b.demo||''}}
+function collFor(type){return type==='metcon'?'scores':'logs'}
+function allEntries(coll){var o=[];Object.keys(S[coll]||{}).forEach(function(k){var doc=S[coll][k]||{};Object.keys(doc.entries||{}).forEach(function(id){o.push(Object.assign({},doc.entries[id],{id:id,docId:k,memberId:doc.memberId,coll:coll}))})});return o}
+function entriesFor(date,bid){return allEntries('scores').concat(allEntries('logs')).filter(function(e){return e.date===date&&e.blockId===bid})}
+async function addEntry(who,e){var coll=collFor(e.type),k=ownerKey(who);var cur=S[coll][k]||{memberId:who,entries:{}};var cut=addDays(TODAY(),-180),ent={};Object.keys(cur.entries||{}).forEach(function(x){if(cur.entries[x].date>=cut)ent[x]=cur.entries[x]});ent[e.date+'_'+e.blockId]=e;await put(coll,k,{memberId:who,entries:ent})}
+async function delEntry(coll,k,id){var cur=S[coll][k];if(!cur)return;var ent=Object.assign({},cur.entries);delete ent[id];await put(coll,k,{memberId:cur.memberId,entries:ent})}
+function demoOk(u){return /^https:\/\/[^\s"'<>]+$/i.test(u||'')}
+function draftFor(key,bi){var dr=ui.drafts[key]||(ui.drafts[key]={unit:ui.unit,note:'',t:'',r:'',x:'',sets:[]});var n=bi.sets||3;while(dr.sets.length<n)dr.sets.push({l:'',r:'',done:false});return dr}
+function fmtScore(e){var s=e.scoring;if(e.sets&&e.sets.length){if(s==='load'){var top=e.sets.reduce(function(a,b){return b.v>a.v?b:a});return fmtVal('load',top.v,{entered:top.e,enteredUnit:e.unit})+' × '+top.r+' · '+e.sets.length+(e.sets.length===1?' set':' sets')}return e.value+' reps · '+e.sets.length+(e.sets.length===1?' set':' sets')}if(s==='time')return fmtSecs(e.value);if(s==='amrap'){var r=Math.floor(e.value/1000),x=e.value%1000;return r+' rds'+(x?' + '+x:'')}if(s==='reps')return e.value+' reps';if(s==='load')return fmtVal('load',e.value,e)+(e.reps?' × '+e.reps:'');return e.note||''}
+function cmpEntry(a,b){var da=a.division==='Scaled'?1:0,dd=b.division==='Scaled'?1:0;if(da!==dd)return da-dd;return a.scoring==='time'?a.value-b.value:b.value-a.value}
+function rankEntries(list){var by={};list.forEach(function(e){if(e.scoring==='note'||e.scoring==='none')return;var c=by[e.memberId];if(!c||cmpEntry(e,c)<0)by[e.memberId]=e});return Object.keys(by).map(function(k){return by[k]}).sort(cmpEntry)}
+function bestsFor(mid){
+  var g={};allPrs().forEach(function(p){if(p.memberId!==mid)return;(g[p.movement]=g[p.movement]||[]).push(p)});
+  return Object.keys(g).map(function(mv){var list=g[mv].sort(function(a,b){return a.date.localeCompare(b.date)});var kind=list[0].kind;var best=list[0];list.forEach(function(p){if(better(kind,p.value,best.value))best=p});
+    var prev=null;list.forEach(function(p){if(p.date<best.date&&(prev===null||better(kind,p.value,prev)))prev=p.value});
+    return {mv:mv,kind:kind,best:best,prev:prev,list:list}}).sort(function(a,b){return b.best.date.localeCompare(a.best.date)});
+}
+function boardFor(mv){var by={};allPrs().forEach(function(p){if(p.movement!==mv)return;var c=by[p.memberId];if(!c||better(p.kind,p.value,c.value))by[p.memberId]=p});return Object.keys(by).map(function(k){return by[k]}).sort(function(a,b){return a.kind==='time'?a.value-b.value:b.value-a.value})}
+
+/* ---------- views ---------- */
+function whoInit(){var s=store.get('forge.who');if(s)ui.who=s}
+function renderWho(){
+  var sel=$('who');var ms=members().filter(function(m){return m.active});
+  var sig=ms.map(function(m){return m.id+m.name}).join('|')+'|'+ui.who;
+  if(sel.dataset.sig===sig)return;sel.dataset.sig=sig;
+  if(ui.who&&!S.members[ui.who])ui.who=null;
+  sel.innerHTML='<option value="">Who is training?</option>'+ms.map(function(m){return '<option value="'+esc(m.id)+'"'+(m.id===ui.who?' selected':'')+'>'+esc(m.name)+'</option>'}).join('');
+}
+function renderTabs(){
+  $('tabs').innerHTML='<div class="tabs-in">'+TABS.map(function(t){
+    return '<button data-act="tab" data-tab="'+t.id+'"'+(ui.tab===t.id?' aria-current="page"':'')+'><svg viewBox="0 0 24 24" aria-hidden="true">'+t.icon+'</svg>'+t.label+'</button>'}).join('')+'</div>';
+}
+function render(){
+  
+  $('gear').hidden=!env.coach;
+  $('who').hidden=!env.coach;$('meName').hidden=env.coach;
+  renderWho();renderTabs();
+  $('meName').textContent=(!env.coach&&ui.who&&S.members[ui.who])?S.members[ui.who].name:'';
+  var v=$('view');
+  var gated=env.mode==='auth'||env.mode==='pending'||env.mode==='rejected';
+  $('tabs').hidden=gated;$('signout').hidden=!(env.mode==='live'||env.mode==='pending'||env.mode==='rejected');
+  if(env.mode==='auth'){var sg='auth'+ui.authMode;if(v.dataset.sig!==sg){v.innerHTML=authView();v.dataset.sig=sg}return}
+  v.dataset.sig='';
+  if(gated){v.innerHTML=gatedView();return}
+  if(env.mode==='loading'||(env.mode==='live'&&!env.expect.every(function(n){return env.loaded[n]}))){v.innerHTML='<div class="empty"><b>Loading the box</b>Pulling in today’s workout and schedule.</div>';return}
+  if(env.mode==='live'&&env.errs.members){v.innerHTML='<div class="empty"><b>Cannot open gym data</b>Access to this app was changed or is unavailable. Reload the page, or ask a coach to share it with you again.</div>';return}
+  if(!env.coach&&env.mode==='live'){
+    if(!env.uid){v.innerHTML=authView();return}
+    var mine=S.claims[env.uid];
+    if(!mine||!S.members[mine.memberId]){v.innerHTML=claimView();return}
+    ui.who=mine.memberId;$('meName').textContent=S.members[ui.who].name;
+  }
+  var banner=env.mode==='demo'?'<div class="banner">Demo mode with sample numbers. Nothing you do here is saved. To go live, add your Supabase keys in config.js (see the README).<br><button class="btn sm ghost" style="margin-top:8px" data-act="demo-role">'+(env.coach?'See the member view':'Back to coach view')+'</button></div>':'';
+  if(env.coach&&env.mode==='live'){var pc=pendingProfiles().length;if(pc)banner+='<button class="strip" data-act="approvals"><b>'+pc+'</b> waiting for approval <span class="go">Review ›</span></button>'}
+  var fn={today:viewToday,workout:viewWorkout,board:viewBoard,classes:viewClasses,prs:viewPrs,dues:viewDues,news:viewNews}[ui.tab];
+  var ae=document.activeElement,fkey=null,ss=0,se=0;
+  if(ae&&ae.dataset&&ae.dataset.fk&&v.contains(ae)){fkey=ae.dataset.fk;try{ss=ae.selectionStart;se=ae.selectionEnd}catch(e1){}}
+  v.innerHTML=banner+fn();
+  if(fkey){var re=v.querySelector('[data-fk="'+fkey.replace(/"/g,'')+'"]');if(re){re.focus();try{re.setSelectionRange(ss,se)}catch(e2){}}}
+}
+
+function viewToday(){
+  var t=TODAY(),d=ui.wodDate||t,w=S.workouts[d],h='';
+  var firstRun=!Object.keys(S.members).length&&!Object.keys(S.schedule).length&&!Object.keys(S.workouts).length;
+  if(firstRun&&env.coach){return '<div class="empty"><b>Set up Forge Davao</b>Start with the weekly class schedule, then add members on the Dues tab and post today’s workout.<div class="acts-row" style="justify-content:center"><button class="btn accent" data-act="sched-mgr">Build class schedule</button><button class="btn ghost" data-act="wod-edit">Post a workout</button></div></div>'}
+  if(env.coach){var c=duesCounts();if(c.overdue||c.soon)h+='<button class="strip" data-act="tab" data-tab="dues"><b>'+c.overdue+'</b> overdue <span>·</span> <b>'+c.soon+'</b> due soon <span class="go">Open dues ›</span></button>'}
+  var label=d===t?'Today':d===addDays(t,1)?'Tomorrow':d===addDays(t,-1)?'Yesterday':fmtDate(d);
+  h+='<section class="board" aria-label="Whiteboard"><div class="board-top"><span class="tape">Whiteboard</span><div class="datenav"><button class="ic" data-act="wod-shift" data-n="-1" aria-label="Previous day"'+(d<=addDays(t,-30)?' disabled':'')+'>‹</button><button class="datelabel" data-act="wod-today" aria-label="Jump to today">'+esc(label)+'</button><button class="ic" data-act="wod-shift" data-n="1" aria-label="Next day"'+(d>=addDays(t,14)?' disabled':'')+'>›</button></div></div>';
+  if(w){
+    h+='<h3>'+esc(w.title||'Workout of the day')+'</h3><span class="pill '+(w.track==='Hyrox'?'hyrox':'')+'">'+esc(w.track||'')+'</span>';
+    if(w.briefing)h+='<p class="briefing">'+esc(w.briefing)+'</p>';
+    (w.blocks||[]).forEach(function(b){h+='<div class="blk"><h4>'+esc(b.label)+'</h4><pre>'+esc(b.text)+'</pre></div>'});
+    if(w.scaling)h+='<div class="blk"><h4>Scaling</h4><pre>'+esc(w.scaling)+'</pre></div>';
+  }else{
+    h+='<div class="empty"><b>Nothing on the board</b>'+(env.coach?'Post the workout so members can see it before class.':'The coaches have not posted '+(d===t?'today’s':'this day’s')+' workout yet.')+'</div>';
+  }
+  if(w||env.coach)h+='<div class="board-actions">'+(w?'<button class="btn sm ghost" data-act="tab" data-tab="workout">Log scores</button><button class="btn sm ghost" data-act="tab" data-tab="board">Leaderboard</button>':'')+(env.coach?'<button class="btn sm ghost" data-act="wod-edit">'+(w?'Edit workout':'Post workout')+'</button>':'')+'</div>';
+  h+='</section>';
+
+  var up=upcoming(3);
+  h+='<div class="sec-row"><h2 class="sec">Next up</h2><button class="btn sm ghost" data-act="tab" data-tab="classes">All classes</button></div>';
+  if(up.length){
+    h+='<ul class="list">'+up.map(function(c){
+      var rs=resvFor(c.id,c.date),mine=ui.who&&rs.some(function(r){return r.memberId===ui.who});
+      var dl=c.date===t?'Today':c.date===addDays(t,1)?'Tomorrow':DOWF[c.day];
+      return '<li><button class="up" data-act="goto-class" data-date="'+c.date+'"><span><span class="day-lab">'+dl+'</span><span class="t">'+timeHtml(c.time)+'</span></span><span><span class="nm">'+esc(c.name)+'</span><span class="sub">'+esc(c.coach||'')+' · '+Math.max(0,c.capacity-rs.length)+' of '+c.capacity+' spots open</span></span>'+(mine?'<span class="pill ok">You’re in</span>':'<span></span>')+'</button></li>'}).join('')+'</ul>';
+  }else h+='<div class="empty">No upcoming classes on the schedule.</div>';
+
+  var anns=annList();
+  if(anns.length){var a=anns[0];
+    h+='<div class="sec-row"><h2 class="sec">From the coaches</h2><button class="btn sm ghost" data-act="tab" data-tab="news">All news</button></div><div class="card ann"><div class="meta">'+(a.pinned?'<span class="pill pin">Pinned</span>':'')+'<span>'+esc(fmtShort(a.createdAt.slice(0,10)))+'</span></div><h3>'+esc(a.title)+'</h3><p class="clamp">'+esc(a.body)+'</p></div>';
+  }
+  return h;
+}
+
+function dateNavHtml(d,t){var label=d===t?'Today':d===addDays(t,1)?'Tomorrow':d===addDays(t,-1)?'Yesterday':fmtDate(d);return '<div class="datenav"><button class="ic" data-act="wod-shift" data-n="-1" aria-label="Previous day"'+(d<=addDays(t,-30)?' disabled':'')+'>‹</button><button class="datelabel" data-act="wod-today" aria-label="Jump to today">'+esc(label)+'</button><button class="ic" data-act="wod-shift" data-n="1" aria-label="Next day"'+(d>=addDays(t,14)?' disabled':'')+'>›</button></div>'}
+function entryLine(e,withName){var main=e.scoring==='note'?esc(e.note):esc(fmtScore(e));var sub=(withName?esc(nameOf(e.memberId))+' · ':'')+(e.scoring!=='note'&&e.note?esc(e.note):'');return '<li><span><b class="mono">'+main+'</b>'+(e.division&&e.scoring!=='note'?' <span class="pill '+(e.division==='Rx'?'':'mute')+'">'+esc(e.division)+'</span>':'')+(sub?'<span class="sub">'+sub+'</span>':'')+'</span>'+(env.coach?'<button class="btn sm danger" data-act="entry-del" data-coll="'+e.coll+'" data-doc="'+esc(e.docId)+'" data-id="'+esc(e.id)+'">Delete</button>':'')+'</li>'}
+var CHK='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></svg>';
+function setCard(d,bi,mine){
+  var key=d+'|'+bi.id+'|'+(ui.who||''),dr=draftFor(key,bi),lg=mine[0],sc=bi.scoring;
+  var rx=(bi.sets&&bi.repsT)?bi.sets+' X '+bi.repsT:(bi.sets?bi.sets+' SETS':(bi.repsT?bi.repsT+' REPS':''));
+  var meta=[bi.tempo?'Tempo: '+bi.tempo:'',bi.rest?'Rest: '+bi.rest:''].filter(Boolean).join(' | ');
+  var h='<section class="scard"><h4 class="sc-title">'+esc(bi.label)+'</h4>'+(bi.text?'<div class="sc-sub">'+esc(bi.text)+'</div>':'');
+  if(demoOk(bi.demo))h+='<a class="sc-demo" href="'+esc(bi.demo)+'" target="_blank" rel="noopener noreferrer">Watch demo</a>';
+  if(rx)h+='<div class="sc-rx">'+esc(rx)+'</div>';
+  if(meta)h+='<div class="sc-meta">'+esc(meta)+'</div>';
+  var fk=function(f,i){return ' data-dk="'+esc(key)+'" data-f="'+f+'"'+(i==null?'':' data-i="'+i+'"')+' data-fk="'+esc(key)+f+(i==null?'':i)+'"'};
+  if(lg){
+    if(lg.sets&&lg.sets.length){lg.sets.forEach(function(x,i){
+      h+='<div class="setrow'+(sc==='load'?'':' rep')+'"><div class="setlab">Set '+(i+1)+'</div>'+(sc==='load'?'<div class="setin"><span>Load</span><b>'+esc(fmtVal('load',x.v,{entered:x.e,enteredUnit:lg.unit}))+'</b></div>':'')+'<div class="setin"><span>Reps</span><b>'+esc(x.r)+'</b></div><div class="setchk" aria-pressed="true">'+CHK+'</div></div>'})}
+    else h+='<div class="setin wide"><span>Logged</span><b>'+esc(fmtScore(lg))+'</b></div>';
+    if(lg.note&&sc!=='note')h+='<p class="sub" style="white-space:pre-wrap">'+esc(lg.note)+'</p>';
+    h+='<div class="sc-foot"><span class="pill ok">Logged</span>'+(env.coach?'<button class="btn sm danger" data-act="entry-del" data-coll="'+lg.coll+'" data-doc="'+esc(lg.docId)+'" data-id="'+esc(lg.id)+'">Delete</button>':'<span class="sub" style="display:inline">Scores can be logged once. Ask a coach to fix a mistake.</span>')+'</div>';
+  }else{
+    if(sc==='load'||sc==='reps'){
+      dr.sets.forEach(function(x,i){
+        h+='<div class="setrow'+(sc==='load'?'':' rep')+'"><div class="setlab">Set '+(i+1)+'</div>'+(sc==='load'?'<label class="setin"><span>Load</span><input inputmode="decimal" placeholder="'+dr.unit+'" value="'+esc(x.l)+'"'+fk('l',i)+'></label>':'')+'<label class="setin"><span>Reps</span><input inputmode="numeric" placeholder="reps" value="'+esc(x.r)+'"'+fk('r',i)+'></label><button type="button" class="setchk" aria-label="Set '+(i+1)+' done" aria-pressed="'+(!!x.done)+'" data-act="set-done" data-dk="'+esc(key)+'" data-i="'+i+'">'+CHK+'</button></div>'});
+      if(sc==='load')h+='<div class="sc-foot"><div class="seg" style="max-width:200px;margin:0" role="group" aria-label="Weight unit">'+['kg','lb'].map(function(u){return '<button type="button" data-act="draft-unit" data-dk="'+esc(key)+'" data-u="'+u+'" aria-pressed="'+(dr.unit===u)+'">'+u+'</button>'}).join('')+'</div></div>';
+    }else if(sc==='time')h+='<label class="setin wide"><span>Time</span><input placeholder="12:45" value="'+esc(dr.t)+'"'+fk('t')+'></label>';
+    else if(sc==='amrap')h+='<div class="setrow rep" style="grid-template-columns:1fr 1fr"><label class="setin"><span>Rounds</span><input inputmode="numeric" placeholder="6" value="'+esc(dr.r)+'"'+fk('r')+'></label><label class="setin"><span>Extra reps</span><input inputmode="numeric" placeholder="12" value="'+esc(dr.x)+'"'+fk('x')+'></label></div>';
+    if(sc==='note')h+='<label class="setin wide"><span>Notes</span><textarea rows="3" placeholder="How it went, cues, what to fix"'+fk('note')+'>'+esc(dr.note)+'</textarea></label>';
+    else h+='<input class="sc-note" placeholder="Note (optional)" value="'+esc(dr.note)+'" aria-label="Note"'+fk('note')+'>';
+    h+='<button class="btn accent block" data-act="log-card" data-date="'+d+'" data-bid="'+esc(bi.id)+'">Log '+LOGWORD[sc]+'</button>';
+  }
+  return h+'</section>';
+}
+function viewWorkout(){
+  var t=TODAY(),d=ui.wodDate||t,w=S.workouts[d];
+  var h='<div class="sec-row"><h2 class="sec">Workout</h2>'+dateNavHtml(d,t)+'</div>';
+  if(!w)return h+'<div class="empty"><b>Nothing posted</b>'+(env.coach?'Post the workout so members can log their scores.<br><button class="btn accent" data-act="wod-edit">Post workout</button>':'The coaches have not posted a workout for this day yet.')+'</div>';
+  h+='<div class="stack"><div><h3 class="wk-title">'+esc(w.title||'Workout of the day')+'</h3><div style="margin-top:8px"><span class="pill '+(w.track==='Hyrox'?'hyrox':'')+'">'+esc(w.track||'')+'</span></div>'+(w.briefing?'<p class="briefing" style="margin-top:12px;border-left:3px solid var(--accent);padding-left:10px;white-space:pre-wrap">'+esc(w.briefing)+'</p>':'')+'</div>';
+  if(env.coach&&!ui.who)h+='<p class="note">Choose a member at the top to see and log scores for them.</p>';
+  if(env.canWrite===false)h+='<p class="note">You have view-only access. Ask a coach for contributor access to log scores.</p>';
+  (w.blocks||[]).forEach(function(b,i){
+    var bi=blockInfo(w,b,i),es=entriesFor(d,bi.id),mine=ui.who?es.filter(function(e){return e.memberId===ui.who}):[];
+    if(bi.scoring!=='none'&&bi.type!=='metcon'){h+=setCard(d,bi,mine);return}
+    var tl=BTYPES.filter(function(x){return x[0]===bi.type})[0];
+    h+='<section class="blkcard"><div class="blkhead"><h4>'+esc(bi.label)+'</h4>'+((tl&&tl[1].toLowerCase()!==bi.label.toLowerCase())?'<span class="pill mute">'+esc(tl[1])+'</span>':'')+'</div><pre>'+esc(bi.text)+'</pre>';
+    if(bi.scoring!=='none'){
+      if(mine.length)h+='<ul class="mylogs">'+mine.map(function(e){return entryLine(e,false)}).join('')+'</ul>';
+      h+='<div class="acts-row" style="margin:0">'+(mine.length?'<span class="pill ok">Logged</span>':'<button class="btn sm accent" data-act="score-log" data-date="'+d+'" data-bid="'+esc(bi.id)+'">Log '+LOGWORD[bi.scoring]+'</button>')+((bi.type==='metcon'&&bi.scoring!=='note')?'<button class="btn sm ghost" data-act="goto-board" data-date="'+d+'" data-bid="'+esc(bi.id)+'">Leaderboard ('+rankEntries(es).length+')</button>':'')+'</div>';
+    }
+    h+='</section>'});
+  if(w.scaling)h+='<section class="blkcard"><div class="blkhead"><h4>Scaling</h4></div><pre>'+esc(w.scaling)+'</pre></section>';
+  if(env.coach)h+='<div class="acts-row"><button class="btn ghost" data-act="wod-edit">Edit workout</button></div>';
+  return h+'</div>';
+}
+function viewBoard(){
+  var t=TODAY(),d=ui.wodDate||t,w=S.workouts[d];
+  var h='<div class="sec-row"><h2 class="sec">Metcon board</h2>'+dateNavHtml(d,t)+'</div>';
+  var mets=[];((w&&w.blocks)||[]).forEach(function(b,i){var bi=blockInfo(w,b,i);if(bi.type==='metcon'&&bi.scoring!=='none'&&bi.scoring!=='note')mets.push(bi)});
+  if(!mets.length)return h+'<div class="empty"><b>No scored metcon</b>'+(w?'This day has no scored metcon.':'Nothing is posted for this day.')+' Use the arrows to find another day.</div>';
+  var cur=mets.filter(function(x){return x.id===ui.boardBlock})[0]||mets[0];ui.boardBlock=cur.id;
+  if(mets.length>1)h+='<div class="chips">'+mets.map(function(x){return '<button class="chip" data-act="board-block" data-bid="'+esc(x.id)+'" aria-pressed="'+(x.id===cur.id)+'">'+esc(x.label)+'</button>'}).join('')+'</div>';
+  var rule={time:'Fastest time wins.',amrap:'Most rounds and reps wins.',reps:'Most reps wins.',load:'Heaviest weight wins.'}[cur.scoring];
+  h+='<div class="card stack" style="margin-bottom:12px"><div><b style="font:800 22px var(--font-display);text-transform:uppercase;letter-spacing:.04em">'+esc(cur.label)+'</b><span class="sub">'+esc(w.title||'')+' · '+rule+' Rx ranks above Scaled.</span></div><div>'+((ui.who&&entriesFor(d,cur.id).some(function(e){return e.memberId===ui.who}))?'<span class="pill ok">You logged this</span>':'<button class="btn sm accent" data-act="score-log" data-date="'+d+'" data-bid="'+esc(cur.id)+'">Log my score</button>')+'</div></div>';
+  h+='<div class="seg" role="group" aria-label="Division">'+['All','Rx','Scaled'].map(function(x){return '<button data-act="board-div" data-v="'+x+'" aria-pressed="'+(ui.div===x)+'">'+x+'</button>'}).join('')+'</div>';
+  var ranked=rankEntries(entriesFor(d,cur.id)).filter(function(e){return ui.div==='All'||e.division===ui.div});
+  if(!ranked.length)return h+'<div class="empty"><b>No scores yet</b>Be the first on the board.</div>';
+  return h+'<ul class="list">'+ranked.map(function(e,i){var me=e.memberId===ui.who;return '<li class="lb'+(me?' me':'')+'"><span class="rank'+(i===0?' r1':'')+'">'+(i+1)+'</span><span><span class="nm">'+esc(nameOf(e.memberId))+(me?' (you)':'')+'</span><span class="sub">'+esc(e.division||'')+(e.note?' · '+esc(e.note):'')+'</span></span><span class="val">'+esc(fmtScore(e))+'</span></li>'}).join('')+'</ul>';
+}
+function viewClasses(){
+  var t=TODAY();var sel=ui.classDate;if(!sel||sel<t||sel>addDays(t,6))sel=ui.classDate=t;
+  var h='<div class="days" role="group" aria-label="Pick a day">';
+  for(var i=0;i<7;i++){var d=addDays(t,i);h+='<button class="day" data-act="class-date" data-date="'+d+'" aria-pressed="'+(d===sel)+'"><span>'+(i===0?'Today':DOW[parseD(d).getDay()])+'</span><b>'+parseD(d).getDate()+'</b></button>'}
+  h+='</div>';
+  if(env.canWrite===false)h+='<p class="note" style="margin-bottom:12px">You have view-only access. Ask a coach for contributor access to reserve classes.</p>';
+  else if(!ui.who)h+='<p class="note" style="margin-bottom:12px">Choose your name at the top to reserve a spot.</p>';
+  var cl=classesOn(sel);
+  if(!cl.length)h+='<div class="empty"><b>No classes</b>Nothing scheduled for '+DOWF[parseD(sel).getDay()]+'.</div>';
+  else h+='<ul class="list">'+cl.map(function(c){
+    var rs=resvFor(c.id,sel),mine=ui.who&&rs.some(function(r){return r.memberId===ui.who}),full=rs.length>=c.capacity,started=sel===t&&c.time<=nowHM();
+    var btn=started?'<button class="btn sm ghost" disabled>Started</button>':mine?'<button class="btn sm ghost" data-act="cancel" data-cls="'+c.id+'" data-date="'+sel+'">Cancel spot</button>':full?'<button class="btn sm ghost" disabled>Full</button>':'<button class="btn sm accent" data-act="reserve" data-cls="'+c.id+'" data-date="'+sel+'">Reserve</button>';
+    var pct=Math.min(100,Math.round(rs.length/c.capacity*100));
+    return '<li class="cls"><span class="t">'+timeHtml(c.time)+'</span><div><div class="head"><span class="nm">'+esc(c.name)+'</span><span class="pill '+(c.track==='Hyrox'?'hyrox':'')+'">'+esc(c.track)+'</span>'+(mine?'<span class="pill ok">You’re in</span>':'')+'</div><span class="sub">'+esc(c.coach||'')+'</span></div>'
+      +'<div class="foot"><div class="capwrap"><div class="cap'+(full?' full':'')+'"><i style="width:'+pct+'%"></i></div><div class="capnum">'+rs.length+' / '+c.capacity+' booked</div></div>'+btn+'</div>'
+      +(env.coach&&rs.length?'<div class="who-in">In: '+rs.map(function(r){return esc(firstName(r.memberId))}).join(', ')+'</div>':'')+'</li>'}).join('')+'</ul>';
+  if(env.coach)h+='<div class="acts-row" style="margin-top:16px"><button class="btn ghost" data-act="sched-mgr">Edit weekly schedule</button></div>';
+  return h;
+}
+
+function viewPrs(){
+  var h='<div class="sec-row"><h2 class="sec">Personal records</h2><button class="btn sm accent" data-act="pr-log">Log a PR</button></div><div class="seg" style="max-width:180px" role="group" aria-label="Weight unit"><button data-act="unit" data-u="kg" aria-pressed="'+(ui.unit==='kg')+'">kg</button><button data-act="unit" data-u="lb" aria-pressed="'+(ui.unit==='lb')+'">lb</button></div>';
+  if(env.canWrite===false)h+='<p class="note" style="margin-bottom:12px">You have view-only access. Ask a coach for contributor access to log PRs.</p>';
+  if(env.coach)h+='<div class="seg" role="group" aria-label="PR view">'+[['mine','My PRs'],['board','Leaderboard'],['recent','Recent']].map(function(x){return '<button data-act="pr-view" data-v="'+x[0]+'" aria-pressed="'+(ui.prView===x[0])+'">'+x[1]+'</button>'}).join('')+'</div>';
+  if(!env.coach||ui.prView==='mine'){
+    if(!ui.who)return h+'<div class="empty"><b>Who are you?</b>Choose your name at the top to see your records.</div>';
+    var bs=bestsFor(ui.who);
+    if(!bs.length)return h+'<div class="empty"><b>No PRs yet</b>Hit a new max? Log it so the box can cheer.<br><button class="btn accent" data-act="pr-log">Log your first PR</button></div>';
+    return h+'<ul class="list">'+bs.map(function(b){return '<li><button class="pr" data-act="pr-detail" data-m="'+esc(ui.who)+'" data-mv="'+esc(b.mv)+'"><span><span class="nm">'+esc(b.mv)+'</span><span class="sub">'+esc(fmtShort(b.best.date))+' · '+plural(b.list.length,'entry').replace('entrys','entries')+(b.prev!==null?' · was '+esc(fmtVal(b.kind,b.prev)):'')+'</span></span><span class="val">'+esc(fmtVal(b.kind,b.best.value,b.best))+'</span></button></li>'}).join('')+'</ul>';
+  }
+  if(ui.prView==='board'){
+    var cnt={};allPrs().forEach(function(p){cnt[p.movement]=(cnt[p.movement]||0)+1});
+    var mvs=Object.keys(cnt).sort(function(a,b){return cnt[b]-cnt[a]});
+    if(!mvs.length)return h+'<div class="empty"><b>Empty board</b>Logged PRs from every member show up here.</div>';
+    var cur=mvs.indexOf(ui.lbMove)>=0?ui.lbMove:mvs[0];
+    h+='<div class="chips">'+mvs.map(function(m){return '<button class="chip" data-act="pr-move" data-mv="'+esc(m)+'" aria-pressed="'+(m===cur)+'">'+esc(m)+'</button>'}).join('')+'</div>';
+    var rows=boardFor(cur);
+    return h+'<ul class="list">'+rows.map(function(p,i){return '<li class="lb"><span class="rank'+(i===0?' r1':'')+'">'+(i+1)+'</span><span><span class="nm">'+esc(nameOf(p.memberId))+'</span><span class="sub">'+esc(fmtShort(p.date))+'</span></span><span class="val">'+esc(fmtVal(p.kind,p.value,p))+'</span></li>'}).join('')+'</ul>';
+  }
+  var rec=allPrs().sort(function(a,b){return b.date.localeCompare(a.date)}).slice(0,20);
+  if(!rec.length)return h+'<div class="empty"><b>Quiet so far</b>New PRs will appear here.</div>';
+  return h+'<ul class="list">'+rec.map(function(p){return '<li class="feed"><span><span class="nm">'+esc(nameOf(p.memberId))+'</span> hit <b class="mono">'+esc(fmtVal(p.kind,p.value,p))+'</b> on '+esc(p.movement)+'</span><span class="sub">'+esc(fmtDate(p.date))+(p.note?' · '+esc(p.note):'')+'</span></li>'}).join('')+'</ul>';
+}
+
+function viewDues(){
+  if(!env.coach)return viewMyDues();
+  var c=duesCounts(),all=duesAll();
+  var h='<div class="sec-row"><h2 class="sec">Monthly dues</h2><button class="btn sm accent" data-act="dues-add">Add member</button></div>';
+  h+='<div class="stats"><div class="stat bad"><span>Overdue</span><b>'+c.overdue+'</b><small>'+money(c.overdueAmt)+'</small></div><div class="stat"><span>Due soon</span><b>'+c.soon+'</b><small>next '+((S.settings.gym&&S.settings.gym.leadDays)||3)+' days</small></div><div class="stat"><span>Collected</span><b>'+money(c.collected)+'</b><small>this month</small></div></div>';
+  var f=ui.filter;
+  var fl=[['all','All',all.length],['overdue','Overdue',c.overdue],['soon','Due soon',c.soon],['ok','Paid up',c.ok],['frozen','Frozen',c.frozen]];
+  h+='<div class="chips">'+fl.map(function(x){return '<button class="chip" data-act="dues-filter" data-f="'+x[0]+'" aria-pressed="'+(f===x[0])+'">'+x[1]+' '+x[2]+'</button>'}).join('')+'</div>';
+  if(c.overdue+c.soon>0)h+='<div class="acts-row" style="margin:0 0 12px"><button class="btn sm ghost" data-act="dues-queue">Reminders to send ('+(c.overdue+c.soon)+')</button></div>';
+  var order={overdue:0,soon:1,ok:2,frozen:3};
+  var rows=all.filter(function(i){return f==='all'||i.st===f}).sort(function(a,b){return order[a.st]-order[b.st]||a.days-b.days});
+  if(!all.length)return h+'<div class="empty"><b>No members yet</b>Add your first member with their monthly fee and next due date.<br><button class="btn accent" data-act="dues-add">Add member</button></div>';
+  if(!rows.length)return h+'<div class="empty">Nobody in this group.</div>';
+  return h+'<ul class="list">'+rows.map(function(i){
+    var cls={overdue:'bad',soon:'warn',ok:'ok',frozen:'mute'}[i.st];
+    return '<li class="drow st-'+i.st+'"><button class="drow-main" data-act="dues-member" data-id="'+esc(i.id)+'"><span class="nm">'+esc(i.m.name)+'</span><span class="sub">'+esc(i.m.plan||'')+' · '+money(i.d.fee)+'</span></button><span class="pill '+cls+'">'+esc(statusLabel(i))+'</span><div class="drow-actions">'
+      +((i.st==='overdue'||i.st==='soon')?'<button class="btn sm ghost" data-act="dues-remind" data-id="'+esc(i.id)+'">Remind</button>':'')
+      +(i.st!=='frozen'?'<button class="btn sm '+(i.st==='ok'?'ghost':'accent')+'" data-act="dues-paid" data-id="'+esc(i.id)+'">Record payment</button>':'')+'</div></li>'}).join('')+'</ul>';
+}
+
+function mirrorFor(mid){var m=S.members[mid],d=S.dues[mid],g=S.settings.gym||{};return {memberId:mid,plan:m.plan||'',active:!!m.active,fee:d.fee,nextDue:d.nextDue,payments:(d.payments||[]).slice(0,6).map(function(p){return {date:p.date,amount:p.amount,method:p.method||'',months:p.months||1}}),payNote:g.payNote||'',leadDays:Number(g.leadDays)||3}}
+function stable(o){if(Array.isArray(o))return '['+o.map(stable).join(',')+']';if(o&&typeof o==='object')return '{'+Object.keys(o).sort().map(function(k){return JSON.stringify(k)+':'+stable(o[k])}).join(',')+'}';return JSON.stringify(o)}
+var syncing=false;
+async function syncMirrors(){
+  if(syncing||!env.coach||env.mode!=='live')return;
+  if(!['dues','claims','members','settings','mydues'].every(function(k){return env.loaded[k]}))return;
+  syncing=true;
+  try{var us=Object.keys(S.claims);for(var i=0;i<us.length;i++){var u=us[i],mid=S.claims[u].memberId;if(!S.members[mid]||!S.dues[mid])continue;var want=mirrorFor(mid);if(stable(want)!==stable(S.mydues[u]||null))await put('mydues',u,want)}}catch(e){}finally{syncing=false}
+}
+function myDueData(){var u=env.uid;if(env.mode==='demo'){return (ui.who&&S.members[ui.who]&&S.dues[ui.who])?mirrorFor(ui.who):null}return S.mydues[u]||null}
+function viewMyDues(){
+  var d=myDueData();var h='<div class="sec-row"><h2 class="sec">My membership dues</h2></div>';
+  if(!d)return h+'<div class="empty"><b>Nothing here yet</b>Your dues show up once a coach has set up your membership. Ask a coach if this stays empty.</div>';
+  var days=diffDays(d.nextDue,TODAY()),lead=d.leadDays||3;
+  var st=!d.active?'frozen':days<0?'overdue':days<=lead?'soon':'ok';
+  var label=st==='frozen'?'Membership frozen':st==='overdue'?plural(-days,'day')+' overdue':st==='soon'?(days===0?'Due today':'Due in '+plural(days,'day')):'Paid up';
+  var cls={overdue:'bad',soon:'warn',ok:'ok',frozen:'mute'}[st];
+  h+='<div class="card stack"><div><span class="pill '+cls+'">'+esc(label)+'</span></div><div class="stats" style="margin:0"><div class="stat"><span>Monthly fee</span><b>'+money(d.fee)+'</b></div><div class="stat" style="grid-column:span 2"><span>Next due date</span><b>'+esc(fmtDate(d.nextDue,{weekday:'short',month:'short',day:'numeric'}))+'</b></div></div><div class="sub">'+esc(d.plan||'')+'</div>'+(d.payNote?'<p class="note">'+esc(d.payNote)+'</p>':'')+'</div>';
+  h+='<div class="sec-row"><h2 class="sec" style="font-size:18px">Payment history</h2></div>';
+  h+=(d.payments&&d.payments.length)?'<ul class="hist">'+d.payments.map(function(p){return '<li><span><b class="mono">'+money(p.amount)+'</b><span class="sub">'+esc(fmtDate(p.date))+' \u00B7 '+esc(p.method||'')+(p.months>1?' \u00B7 '+p.months+' months':'')+'</span></span><span></span></li>'}).join('')+'</ul>':'<div class="empty">No payments recorded yet.</div>';
+  return h+'<p class="note" style="margin-top:14px">Dues are managed by the coaches. This page is read-only. To pay or ask about your membership, talk to a coach.</p>';
+}
+function annList(){return Object.keys(S.announcements).map(function(id){return Object.assign({id:id},S.announcements[id])}).sort(function(a,b){return (b.pinned?1:0)-(a.pinned?1:0)||String(b.createdAt).localeCompare(String(a.createdAt))})}
+function viewNews(){
+  var h='<div class="sec-row"><h2 class="sec">Announcements</h2>'+(env.coach?'<button class="btn sm accent" data-act="ann-new">Post</button>':'')+'</div>';
+  var l=annList();
+  if(!l.length)return h+'<div class="empty"><b>No announcements</b>'+(env.coach?'Post schedule changes, events and reminders for members.':'Updates from the coaches will show up here.')+'</div>';
+  return h+'<div class="stack">'+l.map(function(a){
+    var by=a.by&&S.names[a.by]?S.names[a.by]:'Forge Davao';
+    return '<article class="card ann"><div class="meta">'+(a.pinned?'<span class="pill pin">Pinned</span>':'')+'<span>'+esc(fmtDate(String(a.createdAt).slice(0,10)))+'</span><span>·</span><span>'+esc(by)+'</span></div><h3>'+esc(a.title)+'</h3><p>'+esc(a.body)+'</p>'
+      +(env.coach?'<div class="acts"><button class="btn sm ghost" data-act="ann-pin" data-id="'+esc(a.id)+'">'+(a.pinned?'Unpin':'Pin')+'</button><button class="btn sm danger" data-act="ann-del" data-id="'+esc(a.id)+'">Delete</button></div>':'')+'</article>'}).join('')+'</div>';
+}
+
+/* ---------- sheets ---------- */
+function sheet(html){var el=$('sheet');el.innerHTML='<div class="scrim"><div class="panel" role="dialog" aria-modal="true" tabindex="-1">'+html+'</div></div>';var p=el.querySelector('.panel');p.focus();return p}
+function closeSheet(){$('sheet').innerHTML=''}
+var F=function(label,id,ctl,hint){return '<div class="field"><label for="'+id+'">'+label+'</label>'+ctl+(hint?'<small>'+hint+'</small>':'')+'</div>'};
+var V=function(id){var e=$(id);return e?e.value:''};
+var opts=function(list,sel){return list.map(function(o){var v=Array.isArray(o)?o[0]:o,l=Array.isArray(o)?o[1]:o;return '<option value="'+esc(v)+'"'+(String(v)===String(sel)?' selected':'')+'>'+esc(l)+'</option>'}).join('')};
+
+function blockEdit(b){var ty=b.type||inferType(b.label),sc=b.scoring||DEFSCORE[ty]||'none';return '<div class="blkedit" data-bid="'+esc(b.id||rid('b_'))+'"><div class="blkedit-head"><input class="blk-label" aria-label="Block name" placeholder="Block name, like Strength" value="'+esc(b.label)+'"><button class="btn sm ghost" type="button" data-act="blk-rm">Remove</button></div><div class="two"><div><label>Type</label><select class="blk-type" aria-label="Block type">'+opts(BTYPES,ty)+'</select></div><div><label>Members log</label><select class="blk-score" aria-label="What members log">'+opts(SCORING,sc)+'</select></div></div><div class="blk-rx"'+((sc==='load'||sc==='reps')?'':' hidden')+'><div class="two"><div><label>Sets</label><input class="blk-sets" type="number" inputmode="numeric" min="1" max="12" value="'+esc(b.sets||'')+'" placeholder="5"></div><div><label>Rep target</label><input class="blk-repst" value="'+esc(b.repsT||'')+'" placeholder="3-5"></div></div><div class="two" style="margin-top:8px"><div><label>Tempo</label><input class="blk-tempo" value="'+esc(b.tempo||'')+'" placeholder="20X1"></div><div><label>Rest</label><input class="blk-rest" value="'+esc(b.rest||'')+'" placeholder="3 MIN"></div></div><label style="margin-top:8px">Demo video link (optional)</label><input class="blk-demo" value="'+esc(b.demo||'')+'" placeholder="https://..."></div><textarea class="blk-text" rows="4" aria-label="Block details" placeholder="Movements, reps, loads, time cap">'+esc(b.text)+'</textarea></div>'}
+function openWorkoutEditor(date){
+  var ex=S.workouts[date];var w=ex?clone(ex):{title:'',track:'CrossFit',briefing:'',scaling:'',blocks:[{label:'Warm-up',type:'warmup',text:''},{label:'Skill',type:'skill',text:''},{label:'Strength',type:'strength',text:''},{label:'Metcon',type:'metcon',text:''},{label:'Cooldown',type:'cooldown',text:''}]};
+  var p=sheet('<h3>'+(ex?'Edit':'Post')+' workout</h3><p class="muted" style="margin:-8px 0 14px">'+esc(fmtDate(date,{weekday:'long',month:'long',day:'numeric'}))+'</p>'
+    +F('Title','w-title','<input id="w-title" value="'+esc(w.title)+'" placeholder="Squat Day + Fran">')
+    +F('Track','w-track','<select id="w-track">'+opts(['CrossFit','Hyrox','Both'],w.track)+'</select>')
+    +F('Whiteboard briefing','w-brief','<textarea id="w-brief" rows="3" placeholder="What members should know before class">'+esc(w.briefing)+'</textarea>')
+    +'<div id="w-blocks">'+w.blocks.map(function(b,i){return blockEdit(Object.assign({id:'i'+i},b))}).join('')+'</div><button class="btn sm ghost" type="button" data-act="blk-add" style="margin-bottom:14px">Add block</button>'
+    +F('Scaling options','w-scale','<textarea id="w-scale" rows="2" placeholder="Lighter loads, movement subs">'+esc(w.scaling)+'</textarea>')
+    +'<div class="acts-row"><button class="btn accent" data-act="wod-save" data-date="'+date+'">Save workout</button>'+(ex?'<button class="btn danger" data-act="wod-del" data-date="'+date+'">Delete</button>':'')+'<button class="btn ghost" data-act="close">Cancel</button></div>');
+  return p;
+}
+function unitSwitch(target,cur){return '<div class="field"><label>Unit</label><input type="hidden" id="'+target+'" value="'+cur+'"><div class="seg" style="max-width:200px;margin:0" role="group" aria-label="Weight unit">'+['kg','lb'].map(function(u){return '<button type="button" data-act="form-unit" data-t="'+target+'" data-u="'+u+'" aria-pressed="'+(cur===u)+'">'+u+'</button>'}).join('')+'</div></div>'}
+function findBlock(date,bid){var w=S.workouts[date],r=null;if(w)(w.blocks||[]).forEach(function(b,i){var x=blockInfo(w,b,i);if(x.id===bid)r=x});return r}
+function openScoreLog(date,bid){
+  var w=S.workouts[date],bi=findBlock(date,bid);if(!w||!bi)return;
+  var ms=members().filter(function(m){return m.active}),sc=bi.scoring;
+  var f='<h3>'+esc(bi.label)+'</h3><p class="muted" style="margin:-8px 0 14px">'+esc(w.title||'')+' · '+esc(fmtDate(date))+'</p>';
+  f+=env.coach?F('Member','sl-who','<select id="sl-who"><option value="">Choose member</option>'+opts(ms.map(function(m){return [m.id,m.name]}),ui.who)+'</select>'):'<input id="sl-who" type="hidden" value="'+esc(ui.who||'')+'">';
+  if(bi.type==='metcon'&&sc!=='note')f+=F('Division','sl-div','<select id="sl-div"><option value="Rx">Rx (as written)</option><option value="Scaled">Scaled</option></select>');
+  if(sc==='time')f+=F('Time','sl-time','<input id="sl-time" placeholder="12:45">','Minutes and seconds, like 12:45.');
+  if(sc==='amrap')f+='<div class="two">'+F('Rounds','sl-rounds','<input id="sl-rounds" type="number" inputmode="numeric" min="0" placeholder="6">')+F('Extra reps','sl-xreps','<input id="sl-xreps" type="number" inputmode="numeric" min="0" placeholder="12">')+'</div>';
+  if(sc==='reps')f+=F('Total reps','sl-reps','<input id="sl-reps" type="number" inputmode="numeric" min="0" placeholder="50">');
+  if(sc==='load')f+=F('Weight','sl-weight','<input id="sl-weight" inputmode="decimal" placeholder="'+(ui.unit==='lb'?'225':'100')+'">')+unitSwitch('sl-unit',ui.unit)+F('Reps (optional)','sl-wreps','<input id="sl-wreps" type="number" inputmode="numeric" min="1" placeholder="3">');
+  f+=F(sc==='note'?'Notes':'Note (optional)','sl-note','<textarea id="sl-note" rows="2" placeholder="'+(sc==='note'?'How it went, cues, what to fix':'Scaling used, how it felt')+'"></textarea>');
+  sheet('<div>'+f+'<div class="acts-row"><button class="btn accent" data-act="score-save" data-date="'+date+'" data-bid="'+esc(bid)+'">Save</button><button class="btn ghost" data-act="close">Cancel</button></div></div>');
+}
+function openClassEditor(id,day){
+  var c=id?S.schedule[id]:{day:day==null?1:day,time:'06:00',name:'CrossFit',track:'CrossFit',coach:'',capacity:14};
+  sheet('<h3>'+(id?'Edit class':'Add class')+'</h3>'
+    +'<div class="two">'+F('Day','c-day','<select id="c-day">'+opts(DOWF.map(function(n,i){return [i,n]}),c.day)+'</select>')+F('Start time','c-time','<input id="c-time" type="time" value="'+esc(c.time)+'">')+'</div>'
+    +F('Class name','c-name','<input id="c-name" value="'+esc(c.name)+'" placeholder="CrossFit, Hyrox Engine, Open Gym">')
+    +'<div class="two">'+F('Track','c-track','<select id="c-track">'+opts(TRACKS,c.track)+'</select>')+F('Spots','c-cap','<input id="c-cap" type="number" inputmode="numeric" min="1" value="'+esc(c.capacity)+'">')+'</div>'
+    +F('Coach','c-coach','<input id="c-coach" value="'+esc(c.coach||'')+'" placeholder="Coach name">')
+    +'<div class="acts-row"><button class="btn accent" data-act="class-save" data-id="'+esc(id||'')+'">Save class</button>'+(id?'<button class="btn danger" data-act="class-del" data-id="'+esc(id)+'">Delete</button>':'')+'<button class="btn ghost" data-act="sched-mgr">Back</button></div>');
+}
+function openSchedMgr(){
+  var h='<h3>Weekly schedule</h3>';
+  [1,2,3,4,5,6,0].forEach(function(d){
+    var cl=Object.keys(S.schedule).map(function(id){return Object.assign({id:id},S.schedule[id])}).filter(function(c){return c.day===d}).sort(function(a,b){return a.time.localeCompare(b.time)});
+    h+='<div class="sched-day">'+DOWF[d]+'</div>';
+    if(!cl.length)h+='<p class="muted" style="font-size:13px">No classes.</p>';
+    cl.forEach(function(c){h+='<div class="sched-row"><span class="t">'+timeText(c.time)+'</span><span><span class="nm">'+esc(c.name)+'</span><span class="sub">'+esc(c.coach||'')+' · '+c.capacity+' spots</span></span><button class="btn sm ghost" data-act="class-edit" data-id="'+esc(c.id)+'">Edit</button></div>'});
+    h+='<button class="btn sm ghost" style="margin-top:8px" data-act="class-new" data-day="'+d+'">Add class</button>';
+  });
+  h+='<div class="acts-row" style="margin-top:20px"><button class="btn accent" data-act="close">Done</button></div>';
+  sheet(h);
+}
+function openPrLog(){
+  var ms=members().filter(function(m){return m.active});
+  var p=sheet('<h3>Log a PR</h3>'
+    +(env.coach?F('Member','p-who','<select id="p-who"><option value="">Choose member</option>'+opts(ms.map(function(m){return [m.id,m.name]}),ui.who)+'</select>'):'<input id="p-who" type="hidden" value="'+esc(ui.who||'')+'">')
+    +F('Movement','p-mv','<select id="p-mv">'+['load','time','reps'].map(function(k){return '<optgroup label="'+({load:'Lifts',time:'For time',reps:'Max reps'}[k])+'">'+opts(MOVES.filter(function(m){return m.k===k}).map(function(m){return m.n}))+'</optgroup>'}).join('')+'<option value="__other">Other (type your own)</option></select>')
+    +'<div id="p-custom" hidden><div class="two">'+F('Movement name','p-cname','<input id="p-cname" placeholder="Sled push 50 m">')+F('Measured in','p-ckind','<select id="p-ckind"><option value="load">Weight</option><option value="time">Time</option><option value="reps">Reps</option></select>')+'</div></div>'
+    +F('<span id="p-vlabel">Weight</span>','p-val','<input id="p-val" inputmode="decimal" placeholder="140">','<span id="p-vhint"></span>')
+    +'<div id="p-unitrow">'+unitSwitch('p-unit',ui.unit)+'</div>'
+    +F('Date','p-date','<input id="p-date" type="date" value="'+TODAY()+'" max="'+TODAY()+'">')
+    +F('Note (optional)','p-note','<input id="p-note" placeholder="Belt on, 3 attempts">')
+    +'<div class="acts-row"><button class="btn accent" data-act="pr-save">Save PR</button><button class="btn ghost" data-act="close">Cancel</button></div>');
+  prKindSync();
+}
+function prKind(){var mv=V('p-mv');if(mv==='__other')return V('p-ckind');var m=MOVES.filter(function(x){return x.n===mv})[0];return m?m.k:'load'}
+function prKindSync(){
+  var k=prKind();var other=V('p-mv')==='__other';$('p-custom').hidden=!other;
+  $('p-vlabel').textContent=k==='time'?'Time':k==='reps'?'Reps':'Weight ('+(V('p-unit')||'kg')+')';$('p-unitrow').hidden=k!=='load';
+  $('p-val').placeholder=k==='time'?'4:05':k==='reps'?'14':(V('p-unit')==='lb'?'315':'140');
+  $('p-val').inputMode=k==='time'?'text':k==='reps'?'numeric':'decimal';
+  $('p-vhint').textContent=k==='time'?'Minutes and seconds, like 4:05, or 1:22:30 for hours.':'';
+}
+function openPrDetail(mid,mv){
+  var b=bestsFor(mid).filter(function(x){return x.mv===mv})[0];if(!b)return;
+  var can=env.coach||mid===ui.who;
+  sheet('<h3>'+esc(mv)+'</h3><p class="muted" style="margin:-8px 0 8px">'+esc(nameOf(mid))+' · best '+esc(fmtVal(b.kind,b.best.value,b.best))+'</p><ul class="hist">'+b.list.slice().reverse().map(function(p){return '<li><span><b class="mono">'+esc(fmtVal(p.kind,p.value,p))+'</b><span class="sub">'+esc(fmtDate(p.date))+(p.note?' · '+esc(p.note):'')+'</span></span>'+((can&&(env.coach||p.docId===env.uid))?'<button class="btn sm danger" data-act="pr-del" data-id="'+esc(p.id)+'" data-doc="'+esc(p.docId)+'">Delete</button>':'')+'</li>'}).join('')+'</ul><div class="acts-row" style="margin-top:14px"><button class="btn ghost" data-act="close">Close</button></div>');
+}
+function openMember(id){
+  var i=id?dueInfo(id):null;var m=i?i.m:{name:'',plan:'',active:true};var d=i?i.d:{fee:'',nextDue:addMonths(TODAY(),1),phone:'',payments:[]};
+  var hist=(d.payments||[]).length?'<div class="sec-row" style="margin:20px 0 6px"><h2 class="sec" style="font-size:18px">Payments</h2></div><ul class="hist">'+d.payments.map(function(p){return '<li><span><b class="mono">'+money(p.amount)+'</b><span class="sub">'+esc(fmtDate(p.date))+' · '+esc(p.method||'')+(p.months>1?' · '+p.months+' months':'')+'</span></span><span></span></li>'}).join('')+'</ul>':'';
+  sheet('<h3>'+(id?esc(m.name):'Add member')+'</h3>'
+    +F('Full name','m-name','<input id="m-name" value="'+esc(m.name)+'" autocomplete="off">')
+    +F('Plan','m-plan','<input id="m-plan" list="m-plans" value="'+esc(m.plan||'')+'" placeholder="CrossFit Unlimited"><datalist id="m-plans"><option value="CrossFit Unlimited"><option value="Hyrox Club"><option value="CrossFit + Hyrox"><option value="Student"></datalist>')
+    +'<div class="two">'+F('Monthly fee (₱)','m-fee','<input id="m-fee" type="number" inputmode="numeric" min="0" value="'+esc(d.fee)+'">')+F('Next due date','m-due','<input id="m-due" type="date" value="'+esc(d.nextDue)+'">')+'</div>'
+    +F('Mobile number','m-phone','<input id="m-phone" type="tel" value="'+esc(d.phone||'')+'" placeholder="09XX XXX XXXX">','Used to copy reminder texts. Only coaches can see it.')
+    +'<div class="acts-row"><button class="btn accent" data-act="member-save" data-id="'+esc(id||'')+'">'+(id?'Save changes':'Add member')+'</button>'
+    +(id?'<button class="btn ghost" data-act="member-freeze" data-id="'+esc(id)+'">'+(m.active?'Freeze':'Unfreeze')+'</button><button class="btn danger" data-act="member-del" data-id="'+esc(id)+'">Delete</button>':'')+'<button class="btn ghost" data-act="close">Cancel</button></div>'+hist);
+}
+function openPaid(id){
+  var i=dueInfo(id);if(!i)return;
+  sheet('<h3>Record payment</h3><p class="muted" style="margin:-8px 0 14px">'+esc(i.m.name)+' · '+esc(statusLabel(i))+'</p>'
+    +'<div class="two">'+F('Months paid','pd-months','<select id="pd-months">'+opts([[1,'1 month'],[2,'2 months'],[3,'3 months']],1)+'</select>')+F('Amount (₱)','pd-amt','<input id="pd-amt" type="number" inputmode="numeric" min="0" value="'+esc(i.d.fee)+'" data-fee="'+esc(i.d.fee)+'">')+'</div>'
+    +'<div class="two">'+F('Method','pd-method','<select id="pd-method">'+opts(['Cash','GCash','Bank transfer','Other'])+'</select>')+F('Date paid','pd-date','<input id="pd-date" type="date" value="'+TODAY()+'" max="'+TODAY()+'">')+'</div>'
+    +'<p class="note" id="pd-next" style="margin-bottom:12px"></p>'
+    +'<div class="acts-row"><button class="btn accent" data-act="paid-save" data-id="'+esc(id)+'">Save payment</button><button class="btn ghost" data-act="close">Cancel</button></div>');
+  paidSync(id);
+}
+function paidSync(id){var i=dueInfo(id);var n=Number(V('pd-months'))||1;$('pd-next').textContent='Next due date will be '+fmtDate(addMonths(i.d.nextDue,n,i.d.dueDay),{weekday:'short',month:'long',day:'numeric'})+'.'}
+function openRemind(id){
+  var i=dueInfo(id);if(!i)return;
+  var ph=i.d.phone?'<p class="mono" style="margin-bottom:10px">'+esc(i.d.phone)+'</p>':'<p class="note" style="margin-bottom:10px">No mobile number on file. Add one from the member card.</p>';
+  sheet('<h3>Remind '+esc(i.m.name.split(' ')[0])+'</h3>'+ph+F('Message','f-msg','<textarea id="f-msg" rows="6">'+esc(reminderText(i))+'</textarea>','Copy it, then send by SMS, Messenger or Viber. This app does not send texts itself.')
+    +'<div class="acts-row"><button class="btn accent" data-act="copy" data-src="f-msg">Copy message</button>'+(i.d.phone?'<button class="btn ghost" data-act="copy-text" data-t="'+esc(i.d.phone)+'">Copy number</button>':'')+'<button class="btn ghost" data-act="close">Close</button></div>');
+}
+function openQueue(){
+  var l=duesAll().filter(function(i){return i.st==='overdue'||i.st==='soon'}).sort(function(a,b){return a.days-b.days});
+  sheet('<h3>Reminders to send</h3>'+(l.length?'<ul class="hist">'+l.map(function(i){return '<li><span><span class="nm">'+esc(i.m.name)+'</span><span class="sub">'+esc(statusLabel(i))+' · '+esc(i.d.phone||'no number')+'</span></span><button class="btn sm accent" data-act="copy-remind" data-id="'+esc(i.id)+'">Copy text</button></li>'}).join('')+'</ul>':'<p class="muted">Everyone is paid up.</p>')+'<div class="acts-row" style="margin-top:14px"><button class="btn ghost" data-act="close">Close</button></div>');
+}
+function openAnn(){
+  sheet('<h3>Post announcement</h3>'+F('Title','a-title','<input id="a-title" placeholder="Gym closed for the holiday">')+F('Message','a-body','<textarea id="a-body" rows="5" placeholder="What members need to know"></textarea>')
+    +'<div class="field"><label for="a-pin" style="display:flex;gap:10px;align-items:center;text-transform:none;letter-spacing:0;font:600 15px var(--font-body);color:var(--ink)"><input id="a-pin" type="checkbox" style="width:22px;height:22px;min-height:0"> Pin to the top</label></div>'
+    +'<div class="acts-row"><button class="btn accent" data-act="ann-save">Post</button><button class="btn ghost" data-act="close">Cancel</button></div>');
+}
+function sampleCount(){var n=0;['members','dues','workouts','schedule','announcements','prs','reservations','scores','logs'].forEach(function(c){Object.keys(S[c]||{}).forEach(function(k){if(S[c][k].sample)n++})});return n}
+function openSettings(){
+  var g=S.settings.gym||{};var n=sampleCount();
+  sheet('<h3>Gym settings</h3>'+F('Payment note in reminders','s-note','<textarea id="s-note" rows="3" placeholder="Pay at the front desk or send your proof of payment here.">'+esc(g.payNote||'')+'</textarea>','Added to every reminder text. Put your GCash or bank details here if you want members to have them.')
+    +F('Mark as due soon (days before)','s-lead','<input id="s-lead" type="number" inputmode="numeric" min="1" max="14" value="'+esc(g.leadDays||3)+'">')
+    +'<div class="acts-row"><button class="btn accent" data-act="settings-save">Save settings</button><button class="btn ghost" data-act="close">Cancel</button></div>'
+    +'<div class="acts-row" style="margin-top:18px"><button class="btn ghost" data-act="approvals">Sign-ups and access</button></div>'+claimsHtml()+(n?'<div class="note" style="margin-top:20px"><b>'+n+' sample records</b> are in the app so you can try it out. Clear them before you add your real members.<div class="acts-row"><button class="btn sm danger" data-act="clear-sample">Clear sample data</button></div></div>':''));
+}
+
+/* ---------- actions ---------- */
+function armed(btn,label){if(btn.dataset.armed)return true;btn.dataset.armed='1';btn.dataset.orig=btn.textContent;btn.textContent=label||'Tap again to confirm';setTimeout(function(){if(btn.isConnected&&btn.dataset.armed){delete btn.dataset.armed;btn.textContent=btn.dataset.orig}},4000);return false}
+async function copyText(t,srcId){
+  try{await navigator.clipboard.writeText(t);toast('Copied.');return}catch(e){}
+  var el=srcId&&$(srcId);if(el){el.focus();el.select();try{if(document.execCommand('copy')){toast('Copied.');return}}catch(e2){}}
+  toast('Could not copy. Select the text and copy it by hand.');
+}
+var ACT={
+  unit:function(d){ui.unit=d.u;store.set('forge.unit',d.u);render()},
+  tab:function(d){ui.tab=d.tab;store.set('forge.tab',d.tab);render();window.scrollTo(0,0)},
+  close:function(){closeSheet()},
+  'wod-shift':function(d){ui.wodDate=addDays(ui.wodDate||TODAY(),Number(d.n));render()},
+  'wod-today':function(){ui.wodDate=null;render()},
+  'wod-edit':function(){openWorkoutEditor(ui.wodDate||TODAY())},
+  'blk-add':function(){$('w-blocks').insertAdjacentHTML('beforeend',blockEdit({label:'',type:'metcon',text:''}))},
+  'blk-rm':function(d,el){el.closest('.blkedit').remove()},
+  'wod-save':async function(d){
+    var blocks=[].slice.call(document.querySelectorAll('.blkedit')).map(function(b){return {id:b.dataset.bid||rid('b_'),label:b.querySelector('.blk-label').value.trim(),text:b.querySelector('.blk-text').value.trim(),type:b.querySelector('.blk-type').value,scoring:b.querySelector('.blk-score').value,rx:(function(){var q=function(c){return b.querySelector(c).value.trim()},sc=b.querySelector('.blk-score').value,o={};if(sc==='load'||sc==='reps'){var st=Math.min(12,Math.floor(Number(q('.blk-sets'))||0));if(st>0)o.sets=st;if(q('.blk-repst'))o.repsT=q('.blk-repst');if(q('.blk-tempo'))o.tempo=q('.blk-tempo');if(q('.blk-rest'))o.rest=q('.blk-rest');if(demoOk(q('.blk-demo')))o.demo=q('.blk-demo')}return o})()}}).filter(function(b){return b.text||(b.scoring!=='none'&&b.label)});
+    if(!V('w-title').trim()&&!blocks.length){toast('Add a title or at least one block.');return}
+    var ok=await safely(function(){return put('workouts',d.date,{date:d.date,title:V('w-title').trim(),track:V('w-track'),briefing:V('w-brief').trim(),blocks:blocks.map(function(b){return Object.assign({id:b.id,label:b.label||'Workout',text:b.text,type:b.type,scoring:b.scoring},b.rx)}),scaling:V('w-scale').trim()})});
+    if(ok){closeSheet();toast('Workout posted.')}},
+  'form-unit':function(d,el){var inp=$(d.t);if(inp)inp.value=d.u;[].slice.call(el.parentNode.children).forEach(function(b){b.setAttribute('aria-pressed',String(b===el))});if(d.t==='p-unit')prKindSync();var w=$('sl-weight');if(w&&d.t==='sl-unit')w.placeholder=d.u==='lb'?'225':'100'},
+  'set-done':function(d){var dr=ui.drafts[d.dk];if(!dr)return;var x=dr.sets[Number(d.i)];x.done=!x.done;render()},
+  'draft-unit':function(d){var dr=ui.drafts[d.dk];if(!dr)return;dr.unit=d.u;ui.unit=d.u;store.set('forge.unit',d.u);render()},
+  'log-card':async function(d){
+    var w=S.workouts[d.date],bi=findBlock(d.date,d.bid);if(!w||!bi)return;
+    if(!ui.who){toast(env.coach?'Choose a member at the top first.':'Pick your name first.');return}
+    if(entriesFor(d.date,bi.id).some(function(e){return e.memberId===ui.who})){toast('Already logged. Ask a coach to clear it first.');return}
+    var key=d.date+'|'+bi.id+'|'+ui.who,dr=draftFor(key,bi),sc=bi.scoring,e={date:d.date,blockId:bi.id,label:bi.label,wod:w.title||'',type:bi.type,scoring:sc,note:(dr.note||'').trim()};
+    if(sc==='load'||sc==='reps'){
+      var sets=[],bad=0;
+      dr.sets.forEach(function(x,i){if(!x.done||bad)return;var r=Math.floor(Number(x.r)||0),l=Number(x.l);
+        if(sc==='load'){if(!(l>0)||r<1){bad=i+1;return}sets.push({e:l,v:dr.unit==='lb'?Math.round(l*0.45359237*100)/100:l,r:r})}
+        else{if(r<1){bad=i+1;return}sets.push({r:r})}});
+      if(bad){toast('Fill in '+(sc==='load'?'load and reps':'reps')+' for set '+bad+'.');return}
+      if(!sets.length){toast('Tick the check on each set you finished.');return}
+      e.sets=sets;e.unit=dr.unit;
+      e.value=sc==='load'?Math.max.apply(null,sets.map(function(x){return x.v})):sets.reduce(function(a,x){return a+x.r},0);
+      if(sc==='load'){ui.unit=dr.unit;store.set('forge.unit',dr.unit)}
+    }else if(sc==='time'){var t=parseSecs(dr.t);if(!t){toast('Enter a time like 12:45.');return}e.value=t}
+    else if(sc==='amrap'){var r=Math.floor(Number(dr.r)||0),x=Math.floor(Number(dr.x)||0);if(!(r>0||x>0)||x>999){toast('Enter rounds and extra reps.');return}e.rounds=r;e.xreps=x;e.value=r*1000+x}
+    else if(sc==='note'){if(!e.note){toast('Write your notes.');return}}
+    if(await safely(function(){return addEntry(ui.who,e)})){delete ui.drafts[key];toast('Logged.')}},
+  'score-log':function(d){openScoreLog(d.date,d.bid)},
+  'goto-board':function(d){ui.tab='board';ui.wodDate=d.date;ui.boardBlock=d.bid;render();window.scrollTo(0,0)},
+  'board-div':function(d){ui.div=d.v;render()},
+  'board-block':function(d){ui.boardBlock=d.bid;render()},
+  'entry-del':async function(d,el){if(!armed(el,'Tap again'))return;if(await safely(function(){return delEntry(d.coll,d.doc,d.id)}))toast('Deleted.')},
+  'score-save':async function(d){
+    var w=S.workouts[d.date],bi=findBlock(d.date,d.bid);if(!w||!bi)return;
+    var who=V('sl-who');if(!who){toast('Choose the member.');return}
+    if(entriesFor(d.date,bi.id).some(function(x){return x.memberId===who})){toast('Already logged. Ask a coach to clear it first.');return}
+    var sc=bi.scoring,e={date:d.date,blockId:bi.id,label:bi.label,wod:w.title||'',type:bi.type,scoring:sc,note:V('sl-note').trim()};
+    if(bi.type==='metcon'&&sc!=='note')e.division=V('sl-div')||'Rx';
+    if(sc==='time'){var s=parseSecs(V('sl-time'));if(!s){toast('Enter a time like 12:45.');return}e.value=s}
+    else if(sc==='amrap'){var r=Math.floor(Number(V('sl-rounds'))||0),x=Math.floor(Number(V('sl-xreps'))||0);if(!(r>0||x>0)||x>999){toast('Enter rounds and extra reps.');return}e.rounds=r;e.xreps=x;e.value=r*1000+x}
+    else if(sc==='reps'){var n2=Math.floor(Number(V('sl-reps'))||0);if(n2<1){toast('Enter the number of reps.');return}e.value=n2}
+    else if(sc==='load'){var wt=Number(V('sl-weight'));if(!(wt>0)){toast('Enter the weight.');return}var u=V('sl-unit')||'kg';e.entered=wt;e.enteredUnit=u;ui.unit=u;store.set('forge.unit',u);e.value=u==='lb'?Math.round(wt*0.45359237*100)/100:wt;var rp=Math.floor(Number(V('sl-wreps'))||0);if(rp>0)e.reps=rp}
+    else if(sc==='note'){if(!e.note){toast('Write your notes.');return}}
+    if(await safely(function(){return addEntry(who,e)})){closeSheet();toast('Saved.')}},
+  'wod-del':async function(d,el){if(!armed(el,'Tap again to delete'))return;if(await safely(function(){return del('workouts',d.date)})){closeSheet();toast('Workout deleted.')}},
+  'class-date':function(d){ui.classDate=d.date;render()},
+  'goto-class':function(d){ui.classDate=d.date;ui.tab='classes';render();window.scrollTo(0,0)},
+  reserve:async function(d){
+    if(env.canWrite===false){toast('You have view-only access.');return}
+    if(!ui.who){toast('Choose your name at the top first.');$('who').focus();return}
+    var c=S.schedule[d.cls];if(!c)return;
+    if(resvFor(d.cls,d.date).length>=c.capacity){toast('That class is full.');return}
+    if(await safely(function(){return addResv(ui.who,d.date,d.cls)}))toast('Spot reserved. See you there.')},
+  cancel:async function(d){if(await safely(function(){return dropResv(ui.who,d.date,d.cls)}))toast('Spot cancelled.')},
+  'sched-mgr':function(){openSchedMgr()},
+  'class-new':function(d){openClassEditor(null,Number(d.day))},
+  'class-edit':function(d){openClassEditor(d.id)},
+  'class-save':async function(d){
+    var cap=Math.max(1,parseInt(V('c-cap'),10)||0);if(!V('c-name').trim()||!V('c-time')){toast('Add a class name and start time.');return}
+    var id=d.id||rid('c_');
+    if(await safely(function(){return put('schedule',id,{day:Number(V('c-day')),time:V('c-time'),name:V('c-name').trim(),track:V('c-track'),coach:V('c-coach').trim(),capacity:cap})})){toast('Class saved.');openSchedMgr()}},
+  'class-del':async function(d,el){if(!armed(el,'Tap again to delete'))return;if(await safely(function(){return del('schedule',d.id)})){toast('Class deleted.');openSchedMgr()}},
+  'pr-log':function(){openPrLog()},
+  'pr-view':function(d){ui.prView=d.v;render()},
+  'pr-move':function(d){ui.lbMove=d.mv;render()},
+  'pr-detail':function(d){openPrDetail(d.m,d.mv)},
+  'pr-save':async function(){
+    var who=V('p-who');if(!who){toast('Choose the member.');return}
+    var mv=V('p-mv')==='__other'?V('p-cname').trim():V('p-mv');if(!mv){toast('Name the movement.');return}
+    var kind=prKind(),raw=V('p-val'),val;
+    if(kind==='time'){val=parseSecs(raw);if(!val){toast('Enter a time like 4:05.');return}}
+    else{val=Number(raw);if(!raw||!(val>0)){toast('Enter a number above zero.');return}}
+    var entered=val,eu=null;if(kind==='load'){eu=V('p-unit')||'kg';ui.unit=eu;store.set('forge.unit',eu);if(eu==='lb')val=Math.round(val*0.45359237*100)/100}
+    if(await safely(function(){return addPr(who,Object.assign(kind==='load'?{entered:entered,enteredUnit:eu}:{},{movement:mv,kind:kind,value:val,unit:kind==='load'?'kg':kind==='reps'?'reps':'',date:V('p-date')||TODAY(),note:V('p-note').trim()}))})){
+      closeSheet();toast('PR logged. Nice work.');if(!ui.who||ui.who===who){ui.prView='mine'}render()}},
+  'pr-del':async function(d,el){if(!armed(el,'Tap again'))return;if(await safely(async function(){var doc=S.prs[d.doc];if(!doc)return;var ent=Object.assign({},doc.entries);delete ent[d.id];await put('prs',d.doc,{memberId:doc.memberId,entries:ent})})){closeSheet();toast('Entry deleted.')}},
+  claim:async function(d){if(!env.uid){toast('Sign in to Claude to pick your name.');return}if(await safely(function(){return put('claims',env.uid,{memberId:d.id})}))toast('Welcome, '+firstName(d.id)+'.')},
+  'claim-reset':async function(d,el){if(!armed(el,'Tap again to unlink'))return;if(await safely(async function(){await del('claims',d.u);await del('prs',d.u);await del('reservations',d.u);await del('mydues',d.u);await del('scores',d.u);await del('logs',d.u)})){toast('Member unlinked.');openSettings()}},
+  'demo-role':function(){env.coach=!env.coach;if(env.coach){delete S.claims.demo;ui.who=null}else{S.claims.demo={memberId:'m4'};ui.who='m4';ui.tab='classes'}$('who').dataset.sig='';render();window.scrollTo(0,0)},
+  'dues-filter':function(d){ui.filter=d.f;render()},
+  'dues-add':function(){openMember(null)},
+  'dues-member':function(d){openMember(d.id)},
+  'dues-paid':function(d){openPaid(d.id)},
+  'dues-remind':function(d){openRemind(d.id)},
+  'dues-queue':function(){openQueue()},
+  'copy':function(d){copyText(V(d.src),d.src)},
+  'copy-text':function(d){copyText(d.t)},
+  'copy-remind':function(d){var i=dueInfo(d.id);if(i)copyText(reminderText(i))},
+  'member-save':async function(d){
+    var name=V('m-name').trim(),fee=Number(V('m-fee')),due=V('m-due');
+    if(!name){toast('Add the member’s name.');return}
+    if(!(fee>=0)||V('m-fee')===''){toast('Add the monthly fee.');return}
+    if(!due){toast('Pick the next due date.');return}
+    var anchor=parseD(due).getDate();
+    var ok=await safely(async function(){
+      if(d.id){var cur=S.dues[d.id]||{};await patch('members',d.id,{name:name,plan:V('m-plan').trim()});await put('dues',d.id,Object.assign({},cur,{fee:fee,nextDue:due,dueDay:cur.nextDue===due?(cur.dueDay||anchor):anchor,phone:V('m-phone').trim(),payments:cur.payments||[]}))}
+      else{var id=rid('m_');await put('members',id,{name:name,plan:V('m-plan').trim(),active:true,joined:TODAY()});await put('dues',id,{fee:fee,nextDue:due,dueDay:anchor,phone:V('m-phone').trim(),payments:[]})}});
+    if(ok){closeSheet();toast(d.id?'Member updated.':'Member added.')}},
+  'member-freeze':async function(d){var m=S.members[d.id];if(await safely(function(){return patch('members',d.id,{active:!m.active})})){closeSheet();toast(m.active?'Membership frozen.':'Membership active again.')}},
+  'member-del':async function(d,el){if(!armed(el,'Tap again to delete'))return;if(await safely(async function(){await del('members',d.id);await del('dues',d.id)})){closeSheet();toast('Member deleted.')}},
+  'paid-save':async function(d){
+    var i=dueInfo(d.id),n=Number(V('pd-months'))||1,amt=Number(V('pd-amt'));
+    if(!(amt>0)){toast('Enter the amount paid.');return}
+    var next=addMonths(i.d.nextDue,n,i.d.dueDay);
+    var pays=[{date:V('pd-date')||TODAY(),amount:amt,method:V('pd-method'),months:n}].concat(i.d.payments||[]).slice(0,24);
+    if(await safely(function(){return patch('dues',d.id,{nextDue:next,payments:pays})})){closeSheet();toast(money(amt)+' recorded. Next due '+fmtShort(next)+'.')}},
+  'ann-new':function(){openAnn()},
+  'ann-save':async function(){
+    if(!V('a-title').trim()||!V('a-body').trim()){toast('Add a title and a message.');return}
+    if(await safely(function(){return put('announcements',rid('a_'),{title:V('a-title').trim(),body:V('a-body').trim(),pinned:$('a-pin').checked,createdAt:new Date().toISOString(),by:env.uid||null})})){closeSheet();toast('Announcement posted.')}},
+  'ann-pin':async function(d){await safely(function(){return patch('announcements',d.id,{pinned:!S.announcements[d.id].pinned})})},
+  'ann-del':async function(d,el){if(!armed(el,'Tap again to delete'))return;if(await safely(function(){return del('announcements',d.id)}))toast('Announcement deleted.')},
+  settings:function(){openSettings()},
+  'settings-save':async function(){
+    var lead=Math.min(14,Math.max(1,parseInt(V('s-lead'),10)||3));
+    if(await safely(function(){return put('settings','gym',{payNote:V('s-note').trim(),leadDays:lead})})){closeSheet();toast('Settings saved.')}},
+  'clear-sample':async function(d,el){
+    if(!armed(el,'Tap again to clear all samples'))return;
+    var jobs=[];['members','dues','workouts','schedule','announcements','prs','reservations','scores','logs'].forEach(function(c){Object.keys(S[c]||{}).forEach(function(k){if(S[c][k].sample)jobs.push([c,k])})});
+    var ok=await safely(async function(){for(var j=0;j<jobs.length;j++)await del(jobs[j][0],jobs[j][1])});
+    if(ok){closeSheet();toast('Sample data cleared.')}}
+};
+document.addEventListener('click',function(e){
+  var s=e.target;if(s.classList&&s.classList.contains('scrim')){closeSheet();return}
+  var el=s.closest&&s.closest('[data-act]');if(!el||el.disabled)return;
+  var fn=ACT[el.dataset.act];if(fn){Promise.resolve(fn(el.dataset,el)).catch(function(err){toast(errMsg(err))})}
+});
+document.addEventListener('change',function(e){
+  var id=e.target.id;
+  if(id==='who'){ui.who=e.target.value||null;store.set('forge.who',ui.who||'');$('who').dataset.sig='';render()}
+  else if(id==='p-mv'||id==='p-ckind'||id==='p-unit')prKindSync();
+  else if(e.target.classList&&e.target.classList.contains('blk-type')){var card=e.target.closest('.blkedit'),sc=card.querySelector('.blk-score');sc.value=DEFSCORE[e.target.value]||'none';card.querySelector('.blk-rx').hidden=!(sc.value==='load'||sc.value==='reps')}
+  else if(e.target.classList&&e.target.classList.contains('blk-score')){var c2=e.target.closest('.blkedit');c2.querySelector('.blk-rx').hidden=!(e.target.value==='load'||e.target.value==='reps')}
+  else if(id==='pd-months'){var a=$('pd-amt');a.value=Number(a.dataset.fee)*Number(e.target.value);var sheetBtn=document.querySelector('[data-act="paid-save"]');paidSync(sheetBtn.dataset.id)}
+});
+document.addEventListener('input',function(e){var t=e.target;if(!t||!t.dataset||!t.dataset.dk)return;var dr=ui.drafts[t.dataset.dk];if(!dr)return;var f=t.dataset.f;if(f==='l'||f==='r'&&t.dataset.i!=null){var x=dr.sets[Number(t.dataset.i)];if(x)x[f]=t.value}else dr[f]=t.value});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeSheet()});
+
+/* ---------- boot ---------- */
+async function resolveNames(){
+  if(!env.user)return;
+  var ids=[];Object.keys(S.announcements).forEach(function(k){var b=S.announcements[k].by;if(b&&ids.indexOf(b)<0)ids.push(b)});
+  if(!ids.length)return;
+  try{var ps=await env.user.profiles(ids);var ch=false;ids.forEach(function(i){var n=(ps[i]&&ps[i].name)||'';if(S.names[i]!==n){S.names[i]=n;ch=true}});if(ch)scheduleRender()}catch(e){}
+}
+function subscribeAll(){
+  var db=env.db,t=TODAY();
+  var defs=[['members',db.collection('members')],['schedule',db.collection('schedule')],['claims',db.collection('claims')],['prs',db.collection('prs')],['reservations',db.collection('reservations')],['workouts',db.collection('workouts').where('date','>=',addDays(t,-30))],['announcements',db.collection('announcements')],['mydues',db.collection('mydues')],['scores',db.collection('scores')],['logs',db.collection('logs')]];
+  if(env.coach)defs.push(['dues',db.collection('dues')],['settings',db.collection('settings')]);
+  env.expect=defs.map(function(d){return d[0]});
+  defs.forEach(function(d){
+    d[1].onSnapshot(function(snap){var o={};snap.docs.forEach(function(x){o[x.id]=x.data()});S[d[0]]=o;env.loaded[d[0]]=true;if(d[0]==='announcements')resolveNames();if(env.coach)syncMirrors();scheduleRender()},
+      function(err){env.loaded[d[0]]=true;env.errs[d[0]]=(err&&err.code)||'error';scheduleRender()});
+  });
+}
+/* ---------- Supabase ---------- */
+function makeDb(sb){
+  var L={},timers={};
+  function fetchInto(name){
+    var h=L[name];if(!h)return Promise.resolve();
+    return sb.from('docs').select('id,data').eq('collection',name).limit(5000).then(function(r){
+      if(r.error){h.fail({code:r.error.code||'error'});return}
+      var rows=r.data||[];
+      if(h.filt)rows=rows.filter(function(x){return String((x.data||{})[h.filt.f]||'')>=h.filt.v});
+      h.ok({docs:rows.map(function(x){return {id:x.id,data:function(){return x.data}}})});
+    },function(){h.fail({code:'network'})});
+  }
+  function later(name){clearTimeout(timers[name]);timers[name]=setTimeout(function(){fetchInto(name)},250)}
+  function all(){Object.keys(L).forEach(function(n){fetchInto(n)})}
+  var chan=null;
+  function listen(){
+    if(chan)return;
+    try{chan=sb.channel('forge-docs').on('postgres_changes',{event:'*',schema:'public',table:'docs'},function(p){
+      var n=(p.new&&p.new.collection)||(p.old&&p.old.collection);if(n)later(n);else all()
+    }).on('postgres_changes',{event:'*',schema:'public',table:'profiles'},function(){if(env.coach)loadProfiles()}).subscribe()}catch(e){}
+    setInterval(function(){if(!document.hidden){all();if(env.coach)loadProfiles()}},30000);
+  }
+  function col(name){
+    var api={
+      where:function(f,op,v){api._f={f:f,v:v};return api},
+      doc:function(id){return {
+        set:async function(data){var r=await sb.from('docs').upsert({collection:name,id:id,data:data,updated_at:new Date().toISOString()});if(r.error)throw r.error;fetchInto(name)},
+        update:async function(data){var g=await sb.from('docs').select('data').eq('collection',name).eq('id',id).maybeSingle();if(g.error)throw g.error;var r=await sb.from('docs').upsert({collection:name,id:id,data:Object.assign({},g.data&&g.data.data,data),updated_at:new Date().toISOString()});if(r.error)throw r.error;fetchInto(name)},
+        delete:async function(){var r=await sb.from('docs').delete().eq('collection',name).eq('id',id);if(r.error)throw r.error;fetchInto(name)}
+      }},
+      onSnapshot:function(ok,fail){L[name]={ok:ok,fail:fail,filt:api._f};fetchInto(name);listen()}
+    };
+    return api;
+  }
+  return {collection:col};
+}
+function pendingProfiles(){return (env.profiles||[]).filter(function(p){return p.status==='pending'})}
+async function loadProfiles(){
+  if(!env.sb||!env.coach)return;
+  var r=await env.sb.from('profiles').select('*').order('created_at',{ascending:true});
+  if(!r.error){env.profiles=r.data||[];scheduleRender()}
+}
+function authView(){
+  var su=ui.authMode==='signup';
+  return '<div class="sec-row"><h2 class="sec">'+(su?'Create your account':'Sign in')+'</h2></div><p class="muted" style="margin-bottom:12px">'+(su?'Sign up with your email. A coach approves new accounts before you can get in.':'Members and coaches of Forge Davao sign in with email and password.')+'</p>'
+    +(su?F('Full name','au-name','<input id="au-name" autocomplete="name">'):'')
+    +F('Email','au-email','<input id="au-email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false">')
+    +F('Password','au-pass','<input id="au-pass" type="password" autocomplete="'+(su?'new-password':'current-password')+'">',su?'At least 8 characters.':'')
+    +'<div class="acts-row"><button class="btn accent" data-act="'+(su?'auth-signup':'auth-login')+'">'+(su?'Sign up':'Sign in')+'</button><button class="btn ghost" data-act="auth-mode">'+(su?'I already have an account':'Create an account')+'</button></div>'
+    +(su?'':'<p style="margin-top:14px"><button class="btn sm ghost" data-act="auth-reset">Forgot password</button></p>');
+}
+function gatedView(){
+  var rej=env.mode==='rejected';
+  return '<div class="empty"><b>'+(rej?'Access was not approved':'Waiting for coach approval')+'</b>'+(rej?'Please talk to a coach at the gym.':'Your account '+esc(env.email||'')+' is created. A coach will approve it soon. Tap Check again after they do.')+'<div class="acts-row" style="justify-content:center"><button class="btn accent" data-act="recheck">Check again</button></div></div>';
+}
+function openApprovals(){
+  var ps=env.profiles||[],pend=ps.filter(function(p){return p.status==='pending'}),rest=ps.filter(function(p){return p.status!=='pending'&&p.id!==env.uid});
+  var taken={};Object.keys(S.claims).forEach(function(u){taken[S.claims[u].memberId]=1});
+  var free=members().filter(function(m){return m.active&&!taken[m.id]});
+  var h='<h3>Sign-ups and access</h3>';
+  h+=pend.length?pend.map(function(p){
+    return '<div class="blkedit"><b>'+esc(p.name||'(no name)')+'</b><div class="muted" style="font-size:13px;margin-bottom:8px">'+esc(p.email)+'</div>'
+      +'<label>Role</label><select id="ap-r-'+esc(p.id)+'"><option value="member">Member</option><option value="coach">Coach</option></select>'
+      +'<label style="margin-top:8px">Link to member record (members)</label><select id="ap-m-'+esc(p.id)+'"><option value="">Choose…</option>'+free.map(function(m){return '<option value="'+esc(m.id)+'">'+esc(m.name)+'</option>'}).join('')+'<option value="__new">Add as a new member</option></select>'
+      +'<div class="acts-row"><button class="btn accent" data-act="approve" data-u="'+esc(p.id)+'">Approve</button><button class="btn danger" data-act="reject" data-u="'+esc(p.id)+'">Reject</button></div></div>'}).join(''):'<p class="muted">No one is waiting.</p>';
+  if(rest.length)h+='<div class="sec-row" style="margin:20px 0 6px"><h2 class="sec" style="font-size:18px">Everyone else</h2></div><ul class="hist">'+rest.map(function(p){return '<li><span class="nm">'+esc(p.name||p.email)+' <span class="pill '+(p.status==='approved'?'ok':'mute')+'">'+esc(p.status==='approved'?p.role:p.status)+'</span></span>'+(p.status==='approved'?'<button class="btn sm danger" data-act="revoke" data-u="'+esc(p.id)+'">Revoke</button>':'<button class="btn sm ghost" data-act="reapprove" data-u="'+esc(p.id)+'">Reopen</button>')+'</li>'}).join('')+'</ul>';
+  h+='<div class="acts-row"><button class="btn ghost" data-act="close">Close</button></div>';
+  sheet(h);
+}
+async function setProfile(uid,patchObj){var r=await env.sb.from('profiles').update(patchObj).eq('id',uid);if(r.error)throw r.error;await loadProfiles()}
+Object.assign(ACT,{
+  'auth-mode':function(){ui.authMode=ui.authMode==='signup'?'login':'signup';render()},
+  'auth-login':async function(){
+    var em=V('au-email').trim(),pw=V('au-pass');if(!em||!pw){toast('Enter your email and password.');return}
+    var r=await env.sb.auth.signInWithPassword({email:em,password:pw});
+    if(r.error)toast(/confirm/i.test(r.error.message)?'Confirm your email first, then sign in.':'Wrong email or password.')},
+  'auth-signup':async function(){
+    var nm=V('au-name').trim(),em=V('au-email').trim(),pw=V('au-pass');
+    if(!nm){toast('Add your full name.');return}if(!em){toast('Add your email.');return}if(pw.length<8){toast('Use at least 8 characters.');return}
+    var r=await env.sb.auth.signUp({email:em,password:pw,options:{data:{full_name:nm}}});
+    if(r.error){toast(r.error.message);return}
+    if(!r.data.session){ui.authMode='login';render();toast('Check your email to confirm, then sign in. A coach will approve you.')}},
+  'auth-reset':async function(){var em=V('au-email').trim();if(!em){toast('Type your email first.');return}
+    var r=await env.sb.auth.resetPasswordForEmail(em,{redirectTo:location.href.split('#')[0]});toast(r.error?r.error.message:'Check your email for a reset link.')},
+  'sign-out':async function(){if(env.sb)await env.sb.auth.signOut();location.reload()},
+  recheck:function(){return startSession(env.session)},
+  approvals:function(){return loadProfiles().then(openApprovals)},
+  approve:async function(d){
+    var role=V('ap-r-'+d.u),mid=V('ap-m-'+d.u),p=(env.profiles||[]).filter(function(x){return x.id===d.u})[0];if(!p)return;
+    if(role==='member'&&!mid){toast('Choose which member this is, or add a new one.');return}
+    await safely(async function(){
+      if(role==='member'){
+        if(mid==='__new'){mid=rid('m_');await put('members',mid,{name:p.name||p.email,plan:'',active:true,joined:TODAY()});var nd=addDays(TODAY(),30);await put('dues',mid,{fee:0,nextDue:nd,dueDay:parseD(nd).getDate(),phone:'',payments:[]})}
+        await put('claims',d.u,{memberId:mid})}
+      await setProfile(d.u,{status:'approved',role:role,member_id:role==='member'?mid:null});
+    });
+    closeSheet();openApprovals();toast('Approved.')},
+  reject:async function(d){if(await safely(function(){return setProfile(d.u,{status:'rejected'})})){closeSheet();openApprovals()}},
+  revoke:async function(d,el){if(!armed(el,'Tap again to revoke'))return;if(await safely(function(){return setProfile(d.u,{status:'rejected'})})){closeSheet();openApprovals()}},
+  reapprove:async function(d){if(await safely(function(){return setProfile(d.u,{status:'pending'})})){closeSheet();openApprovals()}}
+});
+async function startSession(session){
+  env.session=session;
+  if(!session){env.mode='auth';env.uid=null;env.coach=false;render();return}
+  env.uid=session.user.id;env.email=session.user.email;
+  var r=await env.sb.from('profiles').select('*').eq('id',env.uid).maybeSingle();
+  var p=r.data;
+  if(r.error||!p){env.mode='pending';env.coach=false;render();return}
+  env.profile=p;
+  if(p.status!=='approved'){env.mode=p.status==='rejected'?'rejected':'pending';env.coach=false;render();return}
+  env.coach=p.role==='coach';env.canWrite=true;
+  if(!env.db)env.db=makeDb(env.sb);
+  env.mode='live';
+  if(!env.subbed){env.subbed=true;subscribeAll()}
+  if(env.coach)loadProfiles();
+  render();
+}
+async function boot(){
+  whoInit();if(store.get('forge.unit')==='lb')ui.unit='lb';var t=store.get('forge.tab');if(t&&TABS.some(function(x){return x.id===t}))ui.tab=t;
+  render();
+  var cfg=window.FORGE_CONFIG||{};
+  var ok=cfg.url&&cfg.anonKey&&!/YOUR_/.test(cfg.url+cfg.anonKey)&&window.supabase&&window.supabase.createClient;
+  if(!ok){
+    env.mode='demo';env.coach=true;env.canWrite=true;env.uid='demo';
+    var d=sampleData(TODAY());Object.keys(d).forEach(function(k){S[k]=d[k]});
+    if(!ui.who||!S.members[ui.who])ui.who=null;
+    render();return;
+  }
+  env.sb=window.supabase.createClient(cfg.url,cfg.anonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+  env.sb.auth.onAuthStateChange(function(ev,session){
+    if(ev==='SIGNED_OUT'){location.reload();return}
+    if(ev==='SIGNED_IN'&&session&&session.user.id!==env.uid)setTimeout(function(){startSession(session)},0);
+  });
+  var g=await env.sb.auth.getSession();
+  await startSession(g.data&&g.data.session);
+}
+boot();
+setInterval(function(){if(!document.hidden&&!$('sheet').firstChild)scheduleRender()},60000);
+})();
+</script>
+
+
+
+</html>
