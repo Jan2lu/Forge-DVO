@@ -1077,7 +1077,7 @@ Object.assign(ACT,{
   'auth-login':async function(){
     var em=V('au-email').trim(),pw=V('au-pass');if(!em||!pw){toast('Enter your email and password.');return}
     var r=await env.sb.auth.signInWithPassword({email:em,password:pw});
-    if(r.error)toast(/confirm/i.test(r.error.message)?'Confirm your email first, then sign in.':'Wrong email or password.')},
+    if(r.error){var m=r.error.message||'';toast(/confirm/i.test(m)?'Confirm your email first, then sign in.':/invalid login/i.test(m)?'Wrong email or password, or this account does not exist yet. Tap Create an account if you have not signed up.':'Sign-in problem: '+m)}},
   'auth-signup':async function(){
     var nm=V('au-name').trim(),em=V('au-email').trim(),pw=V('au-pass');
     if(!nm){toast('Add your full name.');return}if(!em){toast('Add your email.');return}if(pw.length<8){toast('Use at least 8 characters.');return}
