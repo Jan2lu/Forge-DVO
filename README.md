@@ -7,6 +7,7 @@ Members sign up with email, coaches approve them. Hosted free on GitHub Pages, d
 - `index.html` the whole app
 - `config.js` your Supabase URL and anon key
 - `schema.sql` tables, access rules and the "log once" rule
+- `favicon.png`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `manifest.webmanifest` the app icon (upload all of them next to `index.html`)
 
 ## Setup (about 15 minutes)
 

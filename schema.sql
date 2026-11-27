@@ -120,4 +120,4 @@ do $$ begin
 end $$;
 
 -- 8. Make yourself the first coach (edit the email, run after you sign up) ----
--- update public.profiles set role = 'coach', status = 'approved' where email = 'lu.janjan@gmail.com';
+-- update public.profiles set role = 'coach', status = 'approved' where email = 'you@example.com';

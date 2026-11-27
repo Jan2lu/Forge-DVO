@@ -3,6 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#103a39">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Forge">
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <title>Forge Davao</title>
@@ -512,7 +518,12 @@ function viewToday(){
   var t=TODAY(),d=ui.wodDate||t,w=S.workouts[d],h='';
   var firstRun=!Object.keys(S.members).length&&!Object.keys(S.schedule).length&&!Object.keys(S.workouts).length;
   if(firstRun&&env.coach){return '<div class="empty"><b>Set up Forge Davao</b>Start with the weekly class schedule, then add members on the Dues tab and post today’s workout.<div class="acts-row" style="justify-content:center"><button class="btn accent" data-act="sched-mgr">Build class schedule</button><button class="btn ghost" data-act="wod-edit">Post a workout</button></div></div>'}
+  var anns=annList();
+  if(anns.length){var a=anns[0];
+    h+='<div class="sec-row"><h2 class="sec">From the coaches</h2><button class="btn sm ghost" data-act="tab" data-tab="news">All news</button></div><div class="card ann" style="margin-bottom:14px"><div class="meta">'+(a.pinned?'<span class="pill pin">Pinned</span>':'')+'<span>'+esc(fmtShort(a.createdAt.slice(0,10)))+'</span></div><h3>'+esc(a.title)+'</h3><p class="clamp">'+esc(a.body)+'</p></div>';
+  }
   if(env.coach){var c=duesCounts();if(c.overdue||c.soon)h+='<button class="strip" data-act="tab" data-tab="dues"><b>'+c.overdue+'</b> overdue <span>·</span> <b>'+c.soon+'</b> due soon <span class="go">Open dues ›</span></button>'}
+  else{var md=myDueData();if(md&&md.nextDue)h+='<button class="strip" data-act="tab" data-tab="dues">Next due <b>'+esc(fmtShort(md.nextDue))+'</b>'+(md.fee?' <span>·</span> <b>₱'+Number(md.fee).toLocaleString()+'</b>':'')+' <span class="go">My dues ›</span></button>'}
   var label=d===t?'Today':d===addDays(t,1)?'Tomorrow':d===addDays(t,-1)?'Yesterday':fmtDate(d);
   h+='<section class="board" aria-label="Whiteboard"><div class="board-top"><span class="tape">Whiteboard</span><div class="datenav"><button class="ic" data-act="wod-shift" data-n="-1" aria-label="Previous day"'+(d<=addDays(t,-30)?' disabled':'')+'>‹</button><button class="datelabel" data-act="wod-today" aria-label="Jump to today">'+esc(label)+'</button><button class="ic" data-act="wod-shift" data-n="1" aria-label="Next day"'+(d>=addDays(t,14)?' disabled':'')+'>›</button></div></div>';
   if(w){
@@ -526,19 +537,6 @@ function viewToday(){
   if(w||env.coach)h+='<div class="board-actions">'+(w?'<button class="btn sm ghost" data-act="tab" data-tab="workout">Log scores</button><button class="btn sm ghost" data-act="tab" data-tab="board">Leaderboard</button>':'')+(env.coach?'<button class="btn sm ghost" data-act="wod-edit">'+(w?'Edit workout':'Post workout')+'</button>':'')+'</div>';
   h+='</section>';
 
-  var up=upcoming(3);
-  h+='<div class="sec-row"><h2 class="sec">Next up</h2><button class="btn sm ghost" data-act="tab" data-tab="classes">All classes</button></div>';
-  if(up.length){
-    h+='<ul class="list">'+up.map(function(c){
-      var rs=resvFor(c.id,c.date),mine=ui.who&&rs.some(function(r){return r.memberId===ui.who});
-      var dl=c.date===t?'Today':c.date===addDays(t,1)?'Tomorrow':DOWF[c.day];
-      return '<li><button class="up" data-act="goto-class" data-date="'+c.date+'"><span><span class="day-lab">'+dl+'</span><span class="t">'+timeHtml(c.time)+'</span></span><span><span class="nm">'+esc(c.name)+'</span><span class="sub">'+esc(c.coach||'')+' · '+Math.max(0,c.capacity-rs.length)+' of '+c.capacity+' spots open</span></span>'+(mine?'<span class="pill ok">You’re in</span>':'<span></span>')+'</button></li>'}).join('')+'</ul>';
-  }else h+='<div class="empty">No upcoming classes on the schedule.</div>';
-
-  var anns=annList();
-  if(anns.length){var a=anns[0];
-    h+='<div class="sec-row"><h2 class="sec">From the coaches</h2><button class="btn sm ghost" data-act="tab" data-tab="news">All news</button></div><div class="card ann"><div class="meta">'+(a.pinned?'<span class="pill pin">Pinned</span>':'')+'<span>'+esc(fmtShort(a.createdAt.slice(0,10)))+'</span></div><h3>'+esc(a.title)+'</h3><p class="clamp">'+esc(a.body)+'</p></div>';
-  }
   return h;
 }
 
@@ -577,11 +575,17 @@ function viewWorkout(){
   var t=TODAY(),d=ui.wodDate||t,w=S.workouts[d];
   var h='<div class="sec-row"><h2 class="sec">Workout</h2>'+dateNavHtml(d,t)+'</div>';
   if(!w)return h+'<div class="empty"><b>Nothing posted</b>'+(env.coach?'Post the workout so members can log their scores.<br><button class="btn accent" data-act="wod-edit">Post workout</button>':'The coaches have not posted a workout for this day yet.')+'</div>';
-  h+='<div class="stack"><div><h3 class="wk-title">'+esc(w.title||'Workout of the day')+'</h3><div style="margin-top:8px"><span class="pill '+(w.track==='Hyrox'?'hyrox':'')+'">'+esc(w.track||'')+'</span></div>'+(w.briefing?'<p class="briefing" style="margin-top:12px;border-left:3px solid var(--accent);padding-left:10px;white-space:pre-wrap">'+esc(w.briefing)+'</p>':'')+'</div>';
+  var titleH='<div><h3 class="wk-title">'+esc(w.title||'Workout of the day')+'</h3><div style="margin-top:8px"><span class="pill '+(w.track==='Hyrox'?'hyrox':'')+'">'+esc(w.track||'')+'</span></div></div>';
+  var scaleH=w.scaling?'<section class="blkcard"><div class="blkhead"><h4>Scaling</h4></div><pre>'+esc(w.scaling)+'</pre></section>':'';
+  var bl=w.blocks||[],mi=[];bl.forEach(function(b,i){if(blockInfo(w,b,i).type==='metcon')mi.push(i)});
+  var firstM=mi.length?mi[0]:-1,lastM=mi.length?mi[mi.length-1]:-1;
+  h+='<div class="stack">'+(w.briefing?'<p class="briefing" style="border-left:3px solid var(--accent);padding-left:10px;white-space:pre-wrap">'+esc(w.briefing)+'</p>':'');
+  if(firstM<0)h+=titleH;
   if(env.coach&&!ui.who)h+='<p class="note">Choose a member at the top to see and log scores for them.</p>';
   if(env.canWrite===false)h+='<p class="note">You have view-only access. Ask a coach for contributor access to log scores.</p>';
   (w.blocks||[]).forEach(function(b,i){
     var bi=blockInfo(w,b,i),es=entriesFor(d,bi.id),mine=ui.who?es.filter(function(e){return e.memberId===ui.who}):[];
+    if(i===firstM)h+=titleH;
     if(bi.scoring!=='none'&&bi.type!=='metcon'){h+=setCard(d,bi,mine);return}
     var tl=BTYPES.filter(function(x){return x[0]===bi.type})[0];
     h+='<section class="blkcard"><div class="blkhead"><h4>'+esc(bi.label)+'</h4>'+((tl&&tl[1].toLowerCase()!==bi.label.toLowerCase())?'<span class="pill mute">'+esc(tl[1])+'</span>':'')+'</div><pre>'+esc(bi.text)+'</pre>';
@@ -589,8 +593,8 @@ function viewWorkout(){
       if(mine.length)h+='<ul class="mylogs">'+mine.map(function(e){return entryLine(e,false)}).join('')+'</ul>';
       h+='<div class="acts-row" style="margin:0">'+(mine.length?'<span class="pill ok">Logged</span>':'<button class="btn sm accent" data-act="score-log" data-date="'+d+'" data-bid="'+esc(bi.id)+'">Log '+LOGWORD[bi.scoring]+'</button>')+((bi.type==='metcon'&&bi.scoring!=='note')?'<button class="btn sm ghost" data-act="goto-board" data-date="'+d+'" data-bid="'+esc(bi.id)+'">Leaderboard ('+rankEntries(es).length+')</button>':'')+'</div>';
     }
-    h+='</section>'});
-  if(w.scaling)h+='<section class="blkcard"><div class="blkhead"><h4>Scaling</h4></div><pre>'+esc(w.scaling)+'</pre></section>';
+    h+='</section>';if(i===lastM)h+=scaleH});
+  if(firstM<0)h+=scaleH;
   if(env.coach)h+='<div class="acts-row"><button class="btn ghost" data-act="wod-edit">Edit workout</button></div>';
   return h+'</div>';
 }
