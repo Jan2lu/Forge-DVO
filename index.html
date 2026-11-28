@@ -442,7 +442,8 @@ function resvFor(cid,date){var o=[];Object.keys(S.reservations).forEach(function
 function upcoming(limit){var out=[],t=TODAY(),n=nowHM();for(var i=0;i<7&&out.length<limit;i++){var date=addDays(t,i);classesOn(date).forEach(function(c){if(i===0&&c.time<=n)return;out.push(Object.assign({date:date},c))})}return out.slice(0,limit)}
 function allPrs(){var o=[];Object.keys(S.prs).forEach(function(k){var doc=S.prs[k]||{};Object.keys(doc.entries||{}).forEach(function(id){o.push(Object.assign({},doc.entries[id],{id:id,docId:k,memberId:doc.memberId}))})});return o}
 function claimUid(mid){var k=Object.keys(S.claims).filter(function(u){return S.claims[u].memberId===mid})[0];return k||null}
-function ownerKey(mid){return env.coach?(claimUid(mid)||'c_'+mid):env.uid}
+function mySelf(){var c=S.claims[env.uid];return c&&S.members[c.memberId]?c.memberId:null}
+function ownerKey(mid){if(env.coach&&env.mode==='live'&&mid===mySelf())return env.uid;return env.coach?(claimUid(mid)||'c_'+mid):env.uid}
 async function addPr(who,e){var k=ownerKey(who);var cur=S.prs[k]||{memberId:who,entries:{}};var ent=Object.assign({},cur.entries);ent[rid('p_')]=e;await put('prs',k,{memberId:who,entries:ent})}
 async function addResv(who,date,cls){var k=ownerKey(who),t=TODAY();var cur=S.reservations[k]||{memberId:who,items:{}};var it={};Object.keys(cur.items||{}).forEach(function(x){if(cur.items[x].date>=t)it[x]=cur.items[x]});it[date+'_'+cls]={date:date,classId:cls};await put('reservations',k,{memberId:who,items:it})}
 async function dropResv(who,date,cls){var k=ownerKey(who);var cur=S.reservations[k];if(!cur)return;var it=Object.assign({},cur.items);delete it[date+'_'+cls];await put('reservations',k,{memberId:who,items:it})}
@@ -473,6 +474,7 @@ function bestsFor(mid){
 function boardFor(mv){var by={};allPrs().forEach(function(p){if(p.movement!==mv)return;var c=by[p.memberId];if(!c||better(p.kind,p.value,c.value))by[p.memberId]=p});return Object.keys(by).map(function(k){return by[k]}).sort(function(a,b){return a.kind==='time'?a.value-b.value:b.value-a.value})}
 
 /* ---------- views ---------- */
+function staff(){return env.coach&&env.mode==='live'}
 function whoInit(){var s=store.get('forge.who');if(s)ui.who=s}
 function renderWho(){
   var sel=$('who');var ms=members().filter(function(m){return m.active});
@@ -488,9 +490,10 @@ function renderTabs(){
 function render(){
   
   $('gear').hidden=!env.coach;
-  $('who').hidden=!env.coach;$('meName').hidden=env.coach;
+  if(staff())ui.who=mySelf();
+  $('who').hidden=!env.coach||staff();$('meName').hidden=env.coach&&!staff();
   renderWho();renderTabs();
-  $('meName').textContent=(!env.coach&&ui.who&&S.members[ui.who])?S.members[ui.who].name:'';
+  $('meName').textContent=((!env.coach||staff())&&ui.who&&S.members[ui.who])?S.members[ui.who].name:'';
   var v=$('view');
   var gated=env.mode==='auth'||env.mode==='pending'||env.mode==='rejected';
   $('tabs').hidden=gated;$('signout').hidden=!(env.mode==='live'||env.mode==='pending'||env.mode==='rejected');
@@ -527,14 +530,21 @@ function viewToday(){
   var label=d===t?'Today':d===addDays(t,1)?'Tomorrow':d===addDays(t,-1)?'Yesterday':fmtDate(d);
   h+='<section class="board" aria-label="Whiteboard"><div class="board-top"><span class="tape">Whiteboard</span><div class="datenav"><button class="ic" data-act="wod-shift" data-n="-1" aria-label="Previous day"'+(d<=addDays(t,-30)?' disabled':'')+'>‹</button><button class="datelabel" data-act="wod-today" aria-label="Jump to today">'+esc(label)+'</button><button class="ic" data-act="wod-shift" data-n="1" aria-label="Next day"'+(d>=addDays(t,14)?' disabled':'')+'>›</button></div></div>';
   if(w){
-    h+='<h3>'+esc(w.title||'Workout of the day')+'</h3><span class="pill '+(w.track==='Hyrox'?'hyrox':'')+'">'+esc(w.track||'')+'</span>';
+    var tH='<h3>'+esc(w.title||'Workout of the day')+'</h3><span class="pill '+(w.track==='Hyrox'?'hyrox':'')+'">'+esc(w.track||'')+'</span>';
+    var sH=w.scaling?'<div class="blk"><h4>Scaling</h4><pre>'+esc(w.scaling)+'</pre></div>':'';
+    var bl=w.blocks||[],mi=[];bl.forEach(function(b,i){if(blockInfo(w,b,i).type==='metcon')mi.push(i)});
+    var fM=mi.length?mi[0]:-1,lM=mi.length?mi[mi.length-1]:-1;
     if(w.briefing)h+='<p class="briefing">'+esc(w.briefing)+'</p>';
-    (w.blocks||[]).forEach(function(b){h+='<div class="blk"><h4>'+esc(b.label)+'</h4><pre>'+esc(b.text)+'</pre></div>'});
-    if(w.scaling)h+='<div class="blk"><h4>Scaling</h4><pre>'+esc(w.scaling)+'</pre></div>';
+    if(fM<0)h+=tH;
+    bl.forEach(function(b,i){
+      if(i===fM)h+=tH;
+      h+='<div class="blk"><h4>'+esc(b.label)+'</h4><pre>'+esc(b.text)+'</pre></div>';
+      if(i===lM)h+=sH});
+    if(fM<0)h+=sH;
   }else{
     h+='<div class="empty"><b>Nothing on the board</b>'+(env.coach?'Post the workout so members can see it before class.':'The coaches have not posted '+(d===t?'today’s':'this day’s')+' workout yet.')+'</div>';
   }
-  if(w||env.coach)h+='<div class="board-actions">'+(w?'<button class="btn sm ghost" data-act="tab" data-tab="workout">Log scores</button><button class="btn sm ghost" data-act="tab" data-tab="board">Leaderboard</button>':'')+(env.coach?'<button class="btn sm ghost" data-act="wod-edit">'+(w?'Edit workout':'Post workout')+'</button>':'')+'</div>';
+  if(w||env.coach)h+='<div class="board-actions">'+(w?((staff()&&!ui.who)?'':'<button class="btn sm ghost" data-act="tab" data-tab="workout">Log scores</button>')+'<button class="btn sm ghost" data-act="tab" data-tab="board">Leaderboard</button>':'')+(env.coach?'<button class="btn sm ghost" data-act="wod-edit">'+(w?'Edit workout':'Post workout')+'</button>':'')+'</div>';
   h+='</section>';
 
   return h;
@@ -557,7 +567,7 @@ function setCard(d,bi,mine){
       h+='<div class="setrow'+(sc==='load'?'':' rep')+'"><div class="setlab">Set '+(i+1)+'</div>'+(sc==='load'?'<div class="setin"><span>Load</span><b>'+esc(fmtVal('load',x.v,{entered:x.e,enteredUnit:lg.unit}))+'</b></div>':'')+'<div class="setin"><span>Reps</span><b>'+esc(x.r)+'</b></div><div class="setchk" aria-pressed="true">'+CHK+'</div></div>'})}
     else h+='<div class="setin wide"><span>Logged</span><b>'+esc(fmtScore(lg))+'</b></div>';
     if(lg.note&&sc!=='note')h+='<p class="sub" style="white-space:pre-wrap">'+esc(lg.note)+'</p>';
-    h+='<div class="sc-foot"><span class="pill ok">Logged</span>'+(env.coach?'<button class="btn sm danger" data-act="entry-del" data-coll="'+lg.coll+'" data-doc="'+esc(lg.docId)+'" data-id="'+esc(lg.id)+'">Delete</button>':'<span class="sub" style="display:inline">Scores can be logged once. Ask a coach to fix a mistake.</span>')+'</div>';
+    h+='<div class="sc-foot"><span class="pill ok">Logged</span>'+(env.coach&&!staff()?'<button class="btn sm danger" data-act="entry-del" data-coll="'+lg.coll+'" data-doc="'+esc(lg.docId)+'" data-id="'+esc(lg.id)+'">Delete</button>':'<span class="sub" style="display:inline">Scores can be logged once. Ask a coach to fix a mistake.</span>')+'</div>';
   }else{
     if(sc==='load'||sc==='reps'){
       dr.sets.forEach(function(x,i){
@@ -579,19 +589,21 @@ function viewWorkout(){
   var scaleH=w.scaling?'<section class="blkcard"><div class="blkhead"><h4>Scaling</h4></div><pre>'+esc(w.scaling)+'</pre></section>':'';
   var bl=w.blocks||[],mi=[];bl.forEach(function(b,i){if(blockInfo(w,b,i).type==='metcon')mi.push(i)});
   var firstM=mi.length?mi[0]:-1,lastM=mi.length?mi[mi.length-1]:-1;
+  if(staff()&&!ui.who)h+=linkSelfHint();
   h+='<div class="stack">'+(w.briefing?'<p class="briefing" style="border-left:3px solid var(--accent);padding-left:10px;white-space:pre-wrap">'+esc(w.briefing)+'</p>':'');
   if(firstM<0)h+=titleH;
-  if(env.coach&&!ui.who)h+='<p class="note">Choose a member at the top to see and log scores for them.</p>';
+  
   if(env.canWrite===false)h+='<p class="note">You have view-only access. Ask a coach for contributor access to log scores.</p>';
   (w.blocks||[]).forEach(function(b,i){
     var bi=blockInfo(w,b,i),es=entriesFor(d,bi.id),mine=ui.who?es.filter(function(e){return e.memberId===ui.who}):[];
     if(i===firstM)h+=titleH;
+    if(bi.scoring!=='none'&&bi.type!=='metcon'&&staff()&&!ui.who){h+='<section class="blkcard"><div class="blkhead"><h4>'+esc(bi.label)+'</h4></div><pre>'+esc(bi.text)+'</pre></section>';return}
     if(bi.scoring!=='none'&&bi.type!=='metcon'){h+=setCard(d,bi,mine);return}
     var tl=BTYPES.filter(function(x){return x[0]===bi.type})[0];
     h+='<section class="blkcard"><div class="blkhead"><h4>'+esc(bi.label)+'</h4>'+((tl&&tl[1].toLowerCase()!==bi.label.toLowerCase())?'<span class="pill mute">'+esc(tl[1])+'</span>':'')+'</div><pre>'+esc(bi.text)+'</pre>';
     if(bi.scoring!=='none'){
       if(mine.length)h+='<ul class="mylogs">'+mine.map(function(e){return entryLine(e,false)}).join('')+'</ul>';
-      h+='<div class="acts-row" style="margin:0">'+(mine.length?'<span class="pill ok">Logged</span>':'<button class="btn sm accent" data-act="score-log" data-date="'+d+'" data-bid="'+esc(bi.id)+'">Log '+LOGWORD[bi.scoring]+'</button>')+((bi.type==='metcon'&&bi.scoring!=='note')?'<button class="btn sm ghost" data-act="goto-board" data-date="'+d+'" data-bid="'+esc(bi.id)+'">Leaderboard ('+rankEntries(es).length+')</button>':'')+'</div>';
+      h+='<div class="acts-row" style="margin:0">'+((staff()&&!ui.who)?'':mine.length?'<span class="pill ok">Logged</span>':'<button class="btn sm accent" data-act="score-log" data-date="'+d+'" data-bid="'+esc(bi.id)+'">Log '+LOGWORD[bi.scoring]+'</button>')+((bi.type==='metcon'&&bi.scoring!=='note')?'<button class="btn sm ghost" data-act="goto-board" data-date="'+d+'" data-bid="'+esc(bi.id)+'">Leaderboard ('+rankEntries(es).length+')</button>':'')+'</div>';
     }
     h+='</section>';if(i===lastM)h+=scaleH});
   if(firstM<0)h+=scaleH;
@@ -618,16 +630,16 @@ function viewClasses(){
   for(var i=0;i<7;i++){var d=addDays(t,i);h+='<button class="day" data-act="class-date" data-date="'+d+'" aria-pressed="'+(d===sel)+'"><span>'+(i===0?'Today':DOW[parseD(d).getDay()])+'</span><b>'+parseD(d).getDate()+'</b></button>'}
   h+='</div>';
   if(env.canWrite===false)h+='<p class="note" style="margin-bottom:12px">You have view-only access. Ask a coach for contributor access to reserve classes.</p>';
-  else if(!ui.who)h+='<p class="note" style="margin-bottom:12px">Choose your name at the top to reserve a spot.</p>';
+  else if(!ui.who&&!staff())h+='<p class="note" style="margin-bottom:12px">Choose your name at the top to reserve a spot.</p>';
   var cl=classesOn(sel);
   if(!cl.length)h+='<div class="empty"><b>No classes</b>Nothing scheduled for '+DOWF[parseD(sel).getDay()]+'.</div>';
   else h+='<ul class="list">'+cl.map(function(c){
     var rs=resvFor(c.id,sel),mine=ui.who&&rs.some(function(r){return r.memberId===ui.who}),full=rs.length>=c.capacity,started=sel===t&&c.time<=nowHM();
-    var btn=started?'<button class="btn sm ghost" disabled>Started</button>':mine?'<button class="btn sm ghost" data-act="cancel" data-cls="'+c.id+'" data-date="'+sel+'">Cancel spot</button>':full?'<button class="btn sm ghost" disabled>Full</button>':'<button class="btn sm accent" data-act="reserve" data-cls="'+c.id+'" data-date="'+sel+'">Reserve</button>';
+    var btn=(staff()&&!ui.who)?'':started?'<button class="btn sm ghost" disabled>Started</button>':mine?'<button class="btn sm ghost" data-act="cancel" data-cls="'+c.id+'" data-date="'+sel+'">Cancel spot</button>':full?'<button class="btn sm ghost" disabled>Full</button>':'<button class="btn sm accent" data-act="reserve" data-cls="'+c.id+'" data-date="'+sel+'">Reserve</button>';
     var pct=Math.min(100,Math.round(rs.length/c.capacity*100));
     return '<li class="cls"><span class="t">'+timeHtml(c.time)+'</span><div><div class="head"><span class="nm">'+esc(c.name)+'</span><span class="pill '+(c.track==='Hyrox'?'hyrox':'')+'">'+esc(c.track)+'</span>'+(mine?'<span class="pill ok">You’re in</span>':'')+'</div><span class="sub">'+esc(c.coach||'')+'</span></div>'
       +'<div class="foot"><div class="capwrap"><div class="cap'+(full?' full':'')+'"><i style="width:'+pct+'%"></i></div><div class="capnum">'+rs.length+' / '+c.capacity+' booked</div></div>'+btn+'</div>'
-      +(env.coach&&rs.length?'<div class="who-in">In: '+rs.map(function(r){return esc(firstName(r.memberId))}).join(', ')+'</div>':'')+'</li>'}).join('')+'</ul>';
+      +'</li>'}).join('')+'</ul>';
   if(env.coach)h+='<div class="acts-row" style="margin-top:16px"><button class="btn ghost" data-act="sched-mgr">Edit weekly schedule</button></div>';
   return h;
 }
@@ -635,8 +647,9 @@ function viewClasses(){
 function viewPrs(){
   var h='<div class="sec-row"><h2 class="sec">Personal records</h2><button class="btn sm accent" data-act="pr-log">Log a PR</button></div><div class="seg" style="max-width:180px" role="group" aria-label="Weight unit"><button data-act="unit" data-u="kg" aria-pressed="'+(ui.unit==='kg')+'">kg</button><button data-act="unit" data-u="lb" aria-pressed="'+(ui.unit==='lb')+'">lb</button></div>';
   if(env.canWrite===false)h+='<p class="note" style="margin-bottom:12px">You have view-only access. Ask a coach for contributor access to log PRs.</p>';
-  if(env.coach)h+='<div class="seg" role="group" aria-label="PR view">'+[['mine','My PRs'],['board','Leaderboard'],['recent','Recent']].map(function(x){return '<button data-act="pr-view" data-v="'+x[0]+'" aria-pressed="'+(ui.prView===x[0])+'">'+x[1]+'</button>'}).join('')+'</div>';
-  if(!env.coach||ui.prView==='mine'){
+  if(env.coach&&!staff())h+='<div class="seg" role="group" aria-label="PR view">'+[['mine','My PRs'],['board','Leaderboard'],['recent','Recent']].map(function(x){return '<button data-act="pr-view" data-v="'+x[0]+'" aria-pressed="'+(ui.prView===x[0])+'">'+x[1]+'</button>'}).join('')+'</div>';
+  if(!env.coach||staff()||ui.prView==='mine'){
+    if(!ui.who&&staff())return h+linkSelfHint();
     if(!ui.who)return h+'<div class="empty"><b>Who are you?</b>Choose your name at the top to see your records.</div>';
     var bs=bestsFor(ui.who);
     if(!bs.length)return h+'<div class="empty"><b>No PRs yet</b>Hit a new max? Log it so the box can cheer.<br><button class="btn accent" data-act="pr-log">Log your first PR</button></div>';
@@ -734,7 +747,7 @@ function openScoreLog(date,bid){
   var w=S.workouts[date],bi=findBlock(date,bid);if(!w||!bi)return;
   var ms=members().filter(function(m){return m.active}),sc=bi.scoring;
   var f='<h3>'+esc(bi.label)+'</h3><p class="muted" style="margin:-8px 0 14px">'+esc(w.title||'')+' · '+esc(fmtDate(date))+'</p>';
-  f+=env.coach?F('Member','sl-who','<select id="sl-who"><option value="">Choose member</option>'+opts(ms.map(function(m){return [m.id,m.name]}),ui.who)+'</select>'):'<input id="sl-who" type="hidden" value="'+esc(ui.who||'')+'">';
+  f+=(env.coach&&!staff())?F('Member','sl-who','<select id="sl-who"><option value="">Choose member</option>'+opts(ms.map(function(m){return [m.id,m.name]}),ui.who)+'</select>'):'<input id="sl-who" type="hidden" value="'+esc(ui.who||'')+'">';
   if(bi.type==='metcon'&&sc!=='note')f+=F('Division','sl-div','<select id="sl-div"><option value="Rx">Rx (as written)</option><option value="Scaled">Scaled</option></select>');
   if(sc==='time')f+=F('Time','sl-time','<input id="sl-time" placeholder="12:45">','Minutes and seconds, like 12:45.');
   if(sc==='amrap')f+='<div class="two">'+F('Rounds','sl-rounds','<input id="sl-rounds" type="number" inputmode="numeric" min="0" placeholder="6">')+F('Extra reps','sl-xreps','<input id="sl-xreps" type="number" inputmode="numeric" min="0" placeholder="12">')+'</div>';
@@ -767,7 +780,7 @@ function openSchedMgr(){
 function openPrLog(){
   var ms=members().filter(function(m){return m.active});
   var p=sheet('<h3>Log a PR</h3>'
-    +(env.coach?F('Member','p-who','<select id="p-who"><option value="">Choose member</option>'+opts(ms.map(function(m){return [m.id,m.name]}),ui.who)+'</select>'):'<input id="p-who" type="hidden" value="'+esc(ui.who||'')+'">')
+    +((env.coach&&!staff())?F('Member','p-who','<select id="p-who"><option value="">Choose member</option>'+opts(ms.map(function(m){return [m.id,m.name]}),ui.who)+'</select>'):'<input id="p-who" type="hidden" value="'+esc(ui.who||'')+'">')
     +F('Movement','p-mv','<select id="p-mv">'+['load','time','reps'].map(function(k){return '<optgroup label="'+({load:'Lifts',time:'For time',reps:'Max reps'}[k])+'">'+opts(MOVES.filter(function(m){return m.k===k}).map(function(m){return m.n}))+'</optgroup>'}).join('')+'<option value="__other">Other (type your own)</option></select>')
     +'<div id="p-custom" hidden><div class="two">'+F('Movement name','p-cname','<input id="p-cname" placeholder="Sled push 50 m">')+F('Measured in','p-ckind','<select id="p-ckind"><option value="load">Weight</option><option value="time">Time</option><option value="reps">Reps</option></select>')+'</div></div>'
     +F('<span id="p-vlabel">Weight</span>','p-val','<input id="p-val" inputmode="decimal" placeholder="140">','<span id="p-vhint"></span>')
@@ -787,7 +800,7 @@ function prKindSync(){
 }
 function openPrDetail(mid,mv){
   var b=bestsFor(mid).filter(function(x){return x.mv===mv})[0];if(!b)return;
-  var can=env.coach||mid===ui.who;
+  var can=(env.coach&&!staff())||mid===ui.who;
   sheet('<h3>'+esc(mv)+'</h3><p class="muted" style="margin:-8px 0 8px">'+esc(nameOf(mid))+' · best '+esc(fmtVal(b.kind,b.best.value,b.best))+'</p><ul class="hist">'+b.list.slice().reverse().map(function(p){return '<li><span><b class="mono">'+esc(fmtVal(p.kind,p.value,p))+'</b><span class="sub">'+esc(fmtDate(p.date))+(p.note?' · '+esc(p.note):'')+'</span></span>'+((can&&(env.coach||p.docId===env.uid))?'<button class="btn sm danger" data-act="pr-del" data-id="'+esc(p.id)+'" data-doc="'+esc(p.docId)+'">Delete</button>':'')+'</li>'}).join('')+'</ul><div class="acts-row" style="margin-top:14px"><button class="btn ghost" data-act="close">Close</button></div>');
 }
 function openMember(id){
@@ -832,7 +845,7 @@ function openSettings(){
   sheet('<h3>Gym settings</h3>'+F('Payment note in reminders','s-note','<textarea id="s-note" rows="3" placeholder="Pay at the front desk or send your proof of payment here.">'+esc(g.payNote||'')+'</textarea>','Added to every reminder text. Put your GCash or bank details here if you want members to have them.')
     +F('Mark as due soon (days before)','s-lead','<input id="s-lead" type="number" inputmode="numeric" min="1" max="14" value="'+esc(g.leadDays||3)+'">')
     +'<div class="acts-row"><button class="btn accent" data-act="settings-save">Save settings</button><button class="btn ghost" data-act="close">Cancel</button></div>'
-    +'<div class="acts-row" style="margin-top:18px"><button class="btn ghost" data-act="approvals">Sign-ups and access</button></div>'+claimsHtml()+(n?'<div class="note" style="margin-top:20px"><b>'+n+' sample records</b> are in the app so you can try it out. Clear them before you add your real members.<div class="acts-row"><button class="btn sm danger" data-act="clear-sample">Clear sample data</button></div></div>':''));
+    +'<div class="acts-row" style="margin-top:18px"><button class="btn ghost" data-act="approvals">Sign-ups and access</button>'+(staff()&&!mySelf()?'<button class="btn ghost" data-act="link-self">Link me as a member</button>':'')+'</div>'+claimsHtml()+(n?'<div class="note" style="margin-top:20px"><b>'+n+' sample records</b> are in the app so you can try it out. Clear them before you add your real members.<div class="acts-row"><button class="btn sm danger" data-act="clear-sample">Clear sample data</button></div></div>':''));
 }
 
 /* ---------- actions ---------- */
@@ -928,7 +941,7 @@ var ACT={
       closeSheet();toast('PR logged. Nice work.');if(!ui.who||ui.who===who){ui.prView='mine'}render()}},
   'pr-del':async function(d,el){if(!armed(el,'Tap again'))return;if(await safely(async function(){var doc=S.prs[d.doc];if(!doc)return;var ent=Object.assign({},doc.entries);delete ent[d.id];await put('prs',d.doc,{memberId:doc.memberId,entries:ent})})){closeSheet();toast('Entry deleted.')}},
   claim:async function(d){if(!env.uid){toast('Sign in to Claude to pick your name.');return}if(await safely(function(){return put('claims',env.uid,{memberId:d.id})}))toast('Welcome, '+firstName(d.id)+'.')},
-  'claim-reset':async function(d,el){if(!armed(el,'Tap again to unlink'))return;if(await safely(async function(){await del('claims',d.u);await del('prs',d.u);await del('reservations',d.u);await del('mydues',d.u);await del('scores',d.u);await del('logs',d.u)})){toast('Member unlinked.');openSettings()}},
+  'claim-reset':async function(d,el){if(!armed(el,'Tap again to unlink'))return;if(await safely(async function(){await del('claims',d.u);await del('reservations',d.u);await del('mydues',d.u);await del('scores',d.u)})){toast('Member unlinked.');openSettings()}},
   'demo-role':function(){env.coach=!env.coach;if(env.coach){delete S.claims.demo;ui.who=null}else{S.claims.demo={memberId:'m4'};ui.who='m4';ui.tab='classes'}$('who').dataset.sig='';render();window.scrollTo(0,0)},
   'dues-filter':function(d){ui.filter=d.f;render()},
   'dues-add':function(){openMember(null)},
@@ -1042,6 +1055,12 @@ function makeDb(sb){
   }
   return {collection:col};
 }
+function linkSelfHint(){return '<div class="empty"><b>Train with the members?</b>Link yourself to a member record to log your own PRs, scores and class spots. Only you can see them.<div class="acts-row" style="justify-content:center"><button class="btn accent" data-act="link-self">Link me as a member</button></div></div>'}
+function openLinkSelf(){
+  var taken={};Object.keys(S.claims).forEach(function(u){taken[S.claims[u].memberId]=1});
+  var free=members().filter(function(m){return m.active&&!taken[m.id]});
+  sheet('<h3>Link me as a member</h3><p class="muted" style="margin:-8px 0 12px">Pick your own member record, or add one for yourself.</p>'+F('Member record','ls-m','<select id="ls-m"><option value="">Choose…</option>'+free.map(function(m){return '<option value="'+esc(m.id)+'">'+esc(m.name)+'</option>'}).join('')+'<option value="__new">Add me as a new member</option></select>')+'<div class="acts-row"><button class="btn accent" data-act="link-self-save">Link</button><button class="btn ghost" data-act="close">Cancel</button></div>');
+}
 function pendingProfiles(){return (env.profiles||[]).filter(function(p){return p.status==='pending'})}
 async function loadProfiles(){
   if(!env.sb||!env.coach)return;
@@ -1069,7 +1088,7 @@ function openApprovals(){
   h+=pend.length?pend.map(function(p){
     return '<div class="blkedit"><b>'+esc(p.name||'(no name)')+'</b><div class="muted" style="font-size:13px;margin-bottom:8px">'+esc(p.email)+'</div>'
       +'<label>Role</label><select id="ap-r-'+esc(p.id)+'"><option value="member">Member</option><option value="coach">Coach</option></select>'
-      +'<label style="margin-top:8px">Link to member record (members)</label><select id="ap-m-'+esc(p.id)+'"><option value="">Choose…</option>'+free.map(function(m){return '<option value="'+esc(m.id)+'">'+esc(m.name)+'</option>'}).join('')+'<option value="__new">Add as a new member</option></select>'
+      +'<label style="margin-top:8px">Link to member record (needed for members, optional for coaches who train)</label><select id="ap-m-'+esc(p.id)+'"><option value="">Choose…</option>'+free.map(function(m){return '<option value="'+esc(m.id)+'">'+esc(m.name)+'</option>'}).join('')+'<option value="__new">Add as a new member</option></select>'
       +'<div class="acts-row"><button class="btn accent" data-act="approve" data-u="'+esc(p.id)+'">Approve</button><button class="btn danger" data-act="reject" data-u="'+esc(p.id)+'">Reject</button></div></div>'}).join(''):'<p class="muted">No one is waiting.</p>';
   if(rest.length)h+='<div class="sec-row" style="margin:20px 0 6px"><h2 class="sec" style="font-size:18px">Everyone else</h2></div><ul class="hist">'+rest.map(function(p){return '<li><span class="nm">'+esc(p.name||p.email)+' <span class="pill '+(p.status==='approved'?'ok':'mute')+'">'+esc(p.status==='approved'?p.role:p.status)+'</span></span>'+(p.status==='approved'?'<button class="btn sm danger" data-act="revoke" data-u="'+esc(p.id)+'">Revoke</button>':'<button class="btn sm ghost" data-act="reapprove" data-u="'+esc(p.id)+'">Reopen</button>')+'</li>'}).join('')+'</ul>';
   h+='<div class="acts-row"><button class="btn ghost" data-act="close">Close</button></div>';
@@ -1077,6 +1096,14 @@ function openApprovals(){
 }
 async function setProfile(uid,patchObj){var r=await env.sb.from('profiles').update(patchObj).eq('id',uid);if(r.error)throw r.error;await loadProfiles()}
 Object.assign(ACT,{
+  'link-self':function(){openLinkSelf()},
+  'link-self-save':async function(){
+    var mid=V('ls-m');if(!mid){toast('Choose your member record.');return}
+    if(await safely(async function(){
+      if(mid==='__new'){mid=rid('m_');await put('members',mid,{name:(env.profile&&env.profile.name)||env.email,plan:'',active:true,joined:TODAY()});var nd=addDays(TODAY(),30);await put('dues',mid,{fee:0,nextDue:nd,dueDay:parseD(nd).getDate(),phone:'',payments:[]})}
+      await put('claims',env.uid,{memberId:mid});
+      await setProfile(env.uid,{member_id:mid});
+    })){closeSheet();toast('Linked. You can log your own training now.')}},
   'auth-mode':function(){ui.authMode=ui.authMode==='signup'?'login':'signup';render()},
   'auth-login':async function(){
     var em=V('au-email').trim(),pw=V('au-pass');if(!em||!pw){toast('Enter your email and password.');return}
@@ -1096,11 +1123,12 @@ Object.assign(ACT,{
   approve:async function(d){
     var role=V('ap-r-'+d.u),mid=V('ap-m-'+d.u),p=(env.profiles||[]).filter(function(x){return x.id===d.u})[0];if(!p)return;
     if(role==='member'&&!mid){toast('Choose which member this is, or add a new one.');return}
+    var link=!!mid;
     await safely(async function(){
-      if(role==='member'){
+      if(link){
         if(mid==='__new'){mid=rid('m_');await put('members',mid,{name:p.name||p.email,plan:'',active:true,joined:TODAY()});var nd=addDays(TODAY(),30);await put('dues',mid,{fee:0,nextDue:nd,dueDay:parseD(nd).getDate(),phone:'',payments:[]})}
         await put('claims',d.u,{memberId:mid})}
-      await setProfile(d.u,{status:'approved',role:role,member_id:role==='member'?mid:null});
+      await setProfile(d.u,{status:'approved',role:role,member_id:link?mid:null});
     });
     closeSheet();openApprovals();toast('Approved.')},
   reject:async function(d){if(await safely(function(){return setProfile(d.u,{status:'rejected'})})){closeSheet();openApprovals()}},
